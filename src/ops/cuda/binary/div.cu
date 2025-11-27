@@ -1,29 +1,45 @@
 #include "ops/cuda/binary.h"
-#include "ops/cuda/init.h" // For smalloc, gmalloc (if needed)
+#include "ops/cuda/init.h"
 
-#include "utils/indexing.cuh"
+__device__ inline int get_bcast_offset(int linear_idx, const int* out_shape, int out_ndim,
+                                    const int* in_strides, int in_ndim)
+{
+    int offset = 0;
+    for (int i = out_ndim - 1; i >= 0; --i)
+    {
+        int coord = linear_idx % out_shape[i];
+        linear_idx /= out_shape[i];
 
-__global__ void noncontig_div_kernel(const float* a, const float* b, float* out, const int n,
-                                     const int* a_shape, const int* a_strides, int a_ndim,
-                                     const int* b_shape, const int* b_strides, int b_ndim,
-                                     const int* out_shape, const int* out_strides, int out_ndim)
+        int in_dim_idx = i - (out_ndim - in_ndim);
+        if (in_dim_idx >= 0)
+        {
+            offset += coord * in_strides[in_dim_idx];
+        }
+    }
+    return offset;
+}
+
+__global__ void broadcasted_div_kernel(const float* a, const float* b, float* out, const int n,
+                                     const int* a_strides, int a_ndim, const int* b_strides,
+                                     int b_ndim, const int* out_shape, const int* out_strides,
+                                     int out_ndim)
 {
     int idx = blockDim.x * blockIdx.x + threadIdx.x;
     int stride = gridDim.x * blockDim.x;
 
     for (int i = idx; i < n; i += stride)
     {
-        int a_idx = get_idx(a_shape, a_strides, a_ndim, i);
-        int b_idx = get_idx(b_shape, b_strides, b_ndim, i);
-        int out_idx = get_idx(out_shape, out_strides, out_ndim, i);
+        int a_offset = get_bcast_offset(i, out_shape, out_ndim, a_strides, a_ndim);
+        int b_offset = get_bcast_offset(i, out_shape, out_ndim, b_strides, b_ndim);
+        int out_offset = get_bcast_offset(i, out_shape, out_ndim, out_strides, out_ndim);
 
-        out[out_idx] = a[a_idx] / (b[b_idx] + 1e-7f);
+        out[out_offset] = a[a_offset] / (b[b_offset] + 1e-7f);
     }
 }
 
 __global__ void contig_div_kernel(const float* a, const float* b, float* out, const int n)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockIdx.x + threadIdx.x;
     int stride = gridDim.x * blockDim.x;
 
     for (int i = idx; i < n; i += stride)
@@ -35,8 +51,7 @@ __global__ void contig_div_kernel(const float* a, const float* b, float* out, co
 extern "C" void div_op_cuda(Tensor* a, Tensor* b, Tensor* out)
 {
     LOG_INFO("div_op_cuda: Entering function");
-    LOG_INFO("Div kernel starts");
-    int N = numel(a->shape, a->ndim);
+    int N = numel(out->shape, out->ndim);
 
     int num_threads_per_block = 256;
     int num_blocks = (N + num_threads_per_block - 1) / num_threads_per_block;
@@ -65,9 +80,27 @@ extern "C" void div_op_cuda(Tensor* a, Tensor* b, Tensor* out)
     }
     else
     {
-        noncontig_div_kernel<<<num_blocks, num_threads_per_block>>>(
-            a->data->data, b->data->data, out->data->data, N, a->shape, a->strides, a->ndim,
-            b->shape, b->strides, b->ndim, out->shape, out->strides, out->ndim);
+        int *d_a_strides, *d_b_strides, *d_out_shape, *d_out_strides;
+        cudaMalloc(&d_a_strides, a->ndim * sizeof(int));
+        cudaMemcpy(d_a_strides, a->strides, a->ndim * sizeof(int), cudaMemcpyHostToDevice);
+
+        cudaMalloc(&d_b_strides, b->ndim * sizeof(int));
+        cudaMemcpy(d_b_strides, b->strides, b->ndim * sizeof(int), cudaMemcpyHostToDevice);
+
+        cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
+        cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int), cudaMemcpyHostToDevice);
+
+        cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
+        cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int), cudaMemcpyHostToDevice);
+
+        broadcasted_div_kernel<<<num_blocks, num_threads_per_block>>>(
+            a->data->data, b->data->data, out->data->data, N, d_a_strides, a->ndim, d_b_strides,
+            b->ndim, d_out_shape, d_out_strides, out->ndim);
+
+        cudaFree(d_a_strides);
+        cudaFree(d_b_strides);
+        cudaFree(d_out_shape);
+        cudaFree(d_out_strides);
     }
 
     CHECK_CUDA();

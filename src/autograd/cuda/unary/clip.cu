@@ -1,8 +1,8 @@
 #include "autograd/autograd_utils.h"
+#include "autograd/cuda/broadcast_utils.cuh"
 #include "autograd/cuda/unary/common.cuh"
 #include "autograd/cuda/unary/unary_ops_cuda.h"
-#include "utils/indexing.cuh"
-#include "autograd/cuda/broadcast_utils.cuh"
+#include "device_management.h"
 
 __global__ void clip_grad_kernel(const float* out_grad, const float* prev_data, float* prev_grad,
                                  float min_val, float max_val, int n)
@@ -13,7 +13,7 @@ __global__ void clip_grad_kernel(const float* out_grad, const float* prev_data, 
     for (int i = idx; i < n; i += stride)
     {
         float x = prev_data[i];
-        float mask = (prev_data[i] >= min_val) && (x <= max_val);
+        float mask = (x >= min_val) && (x <= max_val);
         prev_grad[i] += out_grad[i] * mask;
     }
 }
@@ -24,15 +24,18 @@ __global__ void noncontig_clip_grad_kernel(const float* out_grad, const float* p
                                            int prev_ndim, const int* out_shape,
                                            const int* out_strides, int out_ndim)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
     int stride = gridDim.x * blockDim.x;
 
     for (int i = idx; i < n; i += stride)
     {
-        int in_idx = get_broadcasted_input_idx(i, out_shape, out_ndim, prev_shape, prev_strides, prev_ndim);
-        float x = prev_data[in_idx];
-        float mask = (prev_data[in_idx] >= min_val) && (x <= max_val);
-        atomicAdd(&prev_grad[in_idx], out_grad[i] * mask);
+        int out_offset =
+            get_broadcasted_input_idx(i, out_shape, out_ndim, out_shape, out_strides, out_ndim);
+        int prev_offset =
+            get_broadcasted_input_idx(i, out_shape, out_ndim, prev_shape, prev_strides, prev_ndim);
+        float x = prev_data[prev_offset];
+        float mask = (x >= min_val) && (x <= max_val);
+        atomicAdd(&prev_grad[prev_offset], out_grad[out_offset] * mask);
     }
 }
 
@@ -40,59 +43,46 @@ void clip_grad_op_cuda(Tensor* out, Tensor** prev, int n_prev, void* extras)
 {
     LOG_INFO("clip_grad_op_cuda: Entering function with n_prev=%d", n_prev);
 
-    assert(out && "Output tensor cannot be NULL");
-    assert(out->grad && "Output tensor gradient cannot be NULL");
-    assert(out->grad->data && "Output tensor gradient data cannot be NULL");
-    assert(out->grad->data->data && "Output tensor gradient data pointer cannot be NULL");
-    assert(prev && "Previous tensors array cannot be NULL");
-    assert(n_prev == 1 && "n_prev must be 1 for clip_grad_op_cuda");
-    assert(extras && "Extras (ClipExtras) cannot be NULL");
+    assert(out && out->grad && out->grad->data && out->grad->data->data);
+    assert(prev && n_prev == 1 && prev[0] && prev[0]->data && prev[0]->data->data);
+    assert(extras);
 
     Tensor* a = prev[0];
-    assert(a && "Input tensor 'a' cannot be NULL");
-    assert(a->data && "Input tensor 'a' data cannot be NULL");
-    assert(a->data->data && "Input tensor 'a' data pointer cannot be NULL");
-
-    int N = numel(out->shape, out->ndim);
-
-    int num_threads_per_block = 256;
-    int num_blocks = (N + num_threads_per_block - 1) / num_threads_per_block;
+    if (!a->requires_grad)
+    {
+        return;
+    }
+    assert(a->grad && a->grad->data && a->grad->data->data);
 
     ClipExtras* clip_extras = (ClipExtras*) extras;
     float min_val = clip_extras->min_val;
     float max_val = clip_extras->max_val;
 
-    if (prev[0]->requires_grad)
+    int N = numel(out->shape, out->ndim);
+    int num_threads_per_block = 256;
+    int num_blocks = (N + num_threads_per_block - 1) / num_threads_per_block;
+
+    if (is_contiguous(a) && is_contiguous(out))
     {
-        assert(a->grad && "Input tensor 'a' gradient cannot be NULL if requires_grad");
-        assert(a->grad->data && "Input tensor 'a' gradient data cannot be NULL if requires_grad");
-        assert(a->grad->data->data &&
-               "Input tensor 'a' gradient data pointer cannot be NULL if requires_grad");
-        if (is_contiguous(prev[0]))
-        {
-            clip_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                out->grad->data->data, prev[0]->data->data, prev[0]->grad->data->data, min_val,
-                max_val, N);
-        }
-        else
-        {
-            int* d_out_shape;
-            int* d_out_strides;
-
-            cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
-            cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
-
-            cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int), cudaMemcpyHostToDevice);
-            cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int), cudaMemcpyHostToDevice);
-
-            noncontig_clip_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                out->grad->data->data, prev[0]->data->data, prev[0]->grad->data->data, min_val,
-                max_val, N, prev[0]->shape, prev[0]->strides, prev[0]->ndim, d_out_shape,
-                d_out_strides, out->ndim);
-
-            cudaFree(d_out_shape);
-            cudaFree(d_out_strides);
-        }
-        CHECK_CUDA();
+        clip_grad_kernel<<<num_blocks, num_threads_per_block>>>(
+            out->grad->data->data, a->data->data, a->grad->data->data, min_val, max_val, N);
     }
+    else
+    {
+        int *d_out_shape, *d_out_strides, *d_prev_shape, *d_prev_strides;
+        copy_shape_and_strides_to_device(out->shape, out->strides, out->ndim, &d_out_shape,
+                                         &d_out_strides);
+        copy_shape_and_strides_to_device(a->shape, a->strides, a->ndim, &d_prev_shape,
+                                         &d_prev_strides);
+
+        noncontig_clip_grad_kernel<<<num_blocks, num_threads_per_block>>>(
+            out->grad->data->data, a->data->data, a->grad->data->data, min_val, max_val, N,
+            d_prev_shape, d_prev_strides, a->ndim, d_out_shape, d_out_strides, out->ndim);
+
+        cudaFree(d_out_shape);
+        cudaFree(d_out_strides);
+        cudaFree(d_prev_shape);
+        cudaFree(d_prev_strides);
+    }
+    CHECK_CUDA();
 }

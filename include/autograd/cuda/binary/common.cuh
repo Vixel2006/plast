@@ -2,6 +2,7 @@
 #define AUTOGRAD_CUDA_BINARY_COMMON_CUH
 
 #include "autograd/autograd_binary.h"
+#include "autograd/cuda/broadcast_utils.cuh"
 #include "axon_export.h"
 #include "cuda_utils.h" // For CHECK_CUDA
 #include "logger.h"
@@ -36,7 +37,7 @@ __global__ void noncontig_add_grad_kernel(const float* out_grad, float* prev_gra
 __global__ void noncontig_sub_grad_kernel(const float* out_grad, float* prev_grad, int n,
                                           const int* shape, const int* strides, int ndim);
 __global__ void sub_grad_kernel(const float* out_grad, float* prev_grad, int n);
-__global__ void mul_grad_kernel(const float* out_grad, float* prev_grad, float* other_data, int n);
+__global__ void mul_grad_kernel(const float* out_grad, float* prev_grad, const float* other_data, int n);
 __global__ void scalar_mul_grad_kernel(const float* out_grad, float* prev_grad, float scalar,
                                        int n);
 AXON_EXPORT __global__ void noncontig_mul_grad_kernel(const float* out_grad, float* prev_grad,
@@ -46,12 +47,12 @@ AXON_EXPORT __global__ void noncontig_mul_grad_kernel(const float* out_grad, flo
 __global__ void noncontig_scalar_mul_grad_kernel(const float* out_grad, float* prev_grad,
                                                  float scalar, int n, const int* shape,
                                                  const int* strides, int ndim);
-__global__ void scalar_pow_grad_kernel(const float* out_grad, float* prev_data, float* prev_grad,
+__global__ void scalar_pow_grad_kernel(const float* out_grad, float* prev_grad,
                                        float power, int n);
 __global__ void base_pow_grad_kernel(const float* out_grad, float* base_data, float* base_grad,
                                      float* power_data, float* power_grad, int n);
 __global__ void exponent_pow_grad_kernel(const float* out_grad, const float* out_data,
-                                         float* base_data, float* power_grad, int n);
+                                         const float* base_data, float* power_grad, int n);
 __global__ void noncontig_scalar_pow_grad_kernel(const float* out_grad, float* prev_data,
                                                  float* prev_grad, float power, int n,
                                                  const int* shape, const int* strides, int ndim);
@@ -64,14 +65,30 @@ __global__ void noncontig_exponent_pow_grad_kernel(const float* out_grad, const 
 __global__ void numerator_div_grad_kernel(const float* out_grad, float* prev_grad,
                                           const float* denominator, int n);
 __global__ void denominator_div_grad_kernel(const float* out_grad, const float* out_data,
-                                            float* prev_grad, float* denominator, int n);
-__global__ void noncontig_numerator_div_grad_kernel(const float* out_grad, float* prev_grad,
-                                                    const float* denominator, int n,
-                                                    const int* prev_shape, const int* prev_strides,
-                                                    int prev_ndim, const int* out_shape,
-                                                    const int* out_strides, int out_ndim);
+                                            float* prev_grad, const float* denominator, int n);
+static __inline__ __global__ void noncontig_numerator_div_grad_kernel(
+    const float* out_grad, float* prev_grad, const float* denominator, int n, const int* prev_shape,
+    const int* prev_strides, int prev_ndim, const int* denom_shape, const int* denom_strides,
+    int denom_ndim, const int* out_shape, const int* out_strides, int out_ndim)
+{
+    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    int stride = gridDim.x * blockDim.x;
+
+    for (int i = idx; i < n; i += stride)
+    {
+        int out_offset =
+            get_broadcasted_input_idx(i, out_shape, out_ndim, out_shape, out_strides, out_ndim);
+        int prev_grad_offset =
+            get_broadcasted_input_idx(i, out_shape, out_ndim, prev_shape, prev_strides, prev_ndim);
+        int denom_offset = get_broadcasted_input_idx(i, out_shape, out_ndim, denom_shape,
+                                                     denom_strides, denom_ndim);
+        atomicAdd(&prev_grad[prev_grad_offset],
+                  out_grad[out_offset] / (denominator[denom_offset] + 1e-7f));
+    }
+}
+
 __global__ void noncontig_denominator_div_grad_kernel(const float* out_grad, const float* out_data,
-                                                      float* prev_grad, float* denominator, int n,
+                                                      float* prev_grad, const float* denominator, int n,
                                                       const int* prev_shape, const int* prev_strides,
                                                       int prev_ndim, const int* out_shape,
                                                       const int* out_strides, int out_ndim);

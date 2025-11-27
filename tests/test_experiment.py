@@ -1,11 +1,12 @@
-import pytest
 import os
+
+import pytest
 import yaml
-from axon.experiment import Experiment
+
+from plast.experiment import Experiment
 
 
 class TestExperiment:
-
     def setup_method(self):
         self.test_dir = "test_experiments"
         os.makedirs(self.test_dir, exist_ok=True)

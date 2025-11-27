@@ -1,6 +1,5 @@
 #include "autograd/cuda/binary/common.cuh"
 #include "autograd/cuda/broadcast_utils.cuh"
-#include "utils/indexing.cuh"
 
 __global__ void contig_add_grad_kernel(const float* out_grad, float* prev_grad, int n)
 {
@@ -41,101 +40,46 @@ void add_grad_op_cuda(Tensor* out, Tensor** prev, int n_prev, void* extras)
     assert((n_prev == 1 || n_prev == 2) && "n_prev must be 1 or 2 for add_grad_op_cuda");
 
     int N = numel(out->shape, out->ndim);
-
     int num_threads_per_block = 256;
     int num_blocks = (N + num_threads_per_block - 1) / num_threads_per_block;
 
-    if (n_prev == 1)
+    for (int i = 0; i < n_prev; ++i)
     {
-        if (prev[0]->requires_grad)
+        Tensor* p = prev[i];
+        if (p->requires_grad)
         {
-            if (is_contiguous(prev[0]))
+            if (shapes_equal(p->shape, p->ndim, out->shape, out->ndim) && is_contiguous(p) &&
+                is_contiguous(out))
             {
                 contig_add_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[0]->grad->data->data, N);
+                    out->grad->data->data, p->grad->data->data, N);
             }
             else
             {
-                int* d_out_shape;
-                int* d_out_strides;
+                int *d_out_shape, *d_out_strides, *d_prev_shape, *d_prev_strides;
 
                 cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
-                cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
+                cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int), cudaMemcpyHostToDevice);
 
-                cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
+                cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
                 cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int),
                            cudaMemcpyHostToDevice);
 
-                noncontig_add_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[0]->grad->data->data, N, prev[0]->shape,
-                    prev[0]->strides, prev[0]->ndim, d_out_shape, d_out_strides, out->ndim);
+                cudaMalloc(&d_prev_shape, p->ndim * sizeof(int));
+                cudaMemcpy(d_prev_shape, p->shape, p->ndim * sizeof(int), cudaMemcpyHostToDevice);
 
-                cudaFree(d_out_shape);
-                cudaFree(d_out_strides);
-            }
-            CHECK_CUDA();
-        }
-    }
-    else
-    {
-        if (prev[0]->requires_grad)
-        {
-            if (is_contiguous(prev[0]))
-            {
-                contig_add_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[0]->grad->data->data, N);
-            }
-            else
-            {
-                int* d_out_shape;
-                int* d_out_strides;
-
-                cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
-                cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
-
-                cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
-                cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int),
+                cudaMalloc(&d_prev_strides, p->ndim * sizeof(int));
+                cudaMemcpy(d_prev_strides, p->strides, p->ndim * sizeof(int),
                            cudaMemcpyHostToDevice);
 
                 noncontig_add_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[0]->grad->data->data, N, prev[0]->shape,
-                    prev[0]->strides, prev[0]->ndim, d_out_shape, d_out_strides, out->ndim);
+                    out->grad->data->data, p->grad->data->data, N, d_prev_shape, d_prev_strides,
+                    p->ndim, d_out_shape, d_out_strides, out->ndim);
 
                 cudaFree(d_out_shape);
                 cudaFree(d_out_strides);
-            }
-            CHECK_CUDA();
-        }
-
-        if (prev[1]->requires_grad)
-        {
-
-            if (is_contiguous(prev[1]))
-            {
-                contig_add_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[1]->grad->data->data, N);
-            }
-            else
-            {
-                int* d_out_shape;
-                int* d_out_strides;
-
-                cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
-                cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
-
-                cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
-                cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
-
-                noncontig_add_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[1]->grad->data->data, N, prev[1]->shape,
-                    prev[1]->strides, prev[1]->ndim, d_out_shape, d_out_strides, out->ndim);
-
-                cudaFree(d_out_shape);
-                cudaFree(d_out_strides);
+                cudaFree(d_prev_shape);
+                cudaFree(d_prev_strides);
             }
             CHECK_CUDA();
         }

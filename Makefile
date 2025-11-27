@@ -29,6 +29,7 @@ init:
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install pytest flake8 black
+	$(PIP) install -r requirements.txt
 	@echo "--- Virtual environment setup complete ---"
 
 build: prepare init $(BUILD_DIR)
@@ -36,7 +37,7 @@ build: prepare init $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)
 	$(CMAKE) -S . -B $(BUILD_DIR)
 	$(CMAKE) --build $(BUILD_DIR)
-	cp $(BUILD_DIR)/libaxon.so axon/
+	cp $(BUILD_DIR)/_plast_cpp_core.cpython-313-x86_64-linux-gnu.so plast/
 	$(PIP) install -e . --force-reinstall
 	@echo "--- Build complete ---"
 

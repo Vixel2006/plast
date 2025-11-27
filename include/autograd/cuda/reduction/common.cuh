@@ -27,14 +27,14 @@ typedef struct
 } ReductionExtras;
 
 // Kernel declarations
-__global__ void sum_full_grad_kernel(float* in_grad_data, float* output_grad, int in_size,
+__global__ void sum_full_grad_kernel(float* in_grad_data, const float* output_grad, int in_size,
                                      const int* in_grad_shape, const int* in_grad_strides,
                                      int in_grad_ndim);
-__global__ void mean_full_grad_kernel(float* in_grad_data, float* output_grad, int in_size,
+__global__ void mean_full_grad_kernel(float* in_grad_data, const float* output_grad, int in_size,
                                       const int* in_grad_shape, const int* in_grad_strides,
                                       int in_grad_ndim);
-__global__ void max_full_grad_kernel(float* in_grad_data, float* in_data, float* output_grad,
-                                     int in_size, float* max, const int* in_grad_shape,
+__global__ void max_full_grad_kernel(float* in_grad_data, const float* in_data, const float* output_grad,
+                                     int in_size, const float* max, const int* in_grad_shape,
                                      const int* in_grad_strides, int in_grad_ndim);
 __global__ void sum_grad_kernel(const float* out_grad, float* in_grad, const int* shape, int ndim,
                                 int axis, int n, const int* in_grad_shape,

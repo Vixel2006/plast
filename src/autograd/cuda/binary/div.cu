@@ -1,6 +1,6 @@
 #include "autograd/cuda/binary/common.cuh"
 #include "autograd/cuda/broadcast_utils.cuh"
-#include "utils/indexing.cuh"
+#include "device_management.h"
 
 __global__ void numerator_div_grad_kernel(const float* out_grad, float* prev_grad,
                                           const float* denominator, int n)
@@ -14,25 +14,8 @@ __global__ void numerator_div_grad_kernel(const float* out_grad, float* prev_gra
     }
 }
 
-__global__ void noncontig_numerator_div_grad_kernel(const float* out_grad, float* prev_grad,
-                                                    const float* denominator, int n,
-                                                    const int* prev_shape, const int* prev_strides,
-                                                    int prev_ndim, const int* out_shape,
-                                                    const int* out_strides, int out_ndim)
-{
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
-    int stride = gridDim.x * blockDim.x;
-
-    for (int i = idx; i < n; i += stride)
-    {
-        int in_idx =
-            get_broadcasted_input_idx(i, out_shape, out_ndim, prev_shape, prev_strides, prev_ndim);
-        atomicAdd(&prev_grad[in_idx], out_grad[i] / (denominator[in_idx] + 1e-7f));
-    }
-}
-
 __global__ void denominator_div_grad_kernel(const float* out_grad, const float* out_data,
-                                            float* prev_grad, float* denominator, int n)
+                                            float* prev_grad, const float* denominator, int n)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int stride = gridDim.x * blockDim.x;
@@ -44,20 +27,25 @@ __global__ void denominator_div_grad_kernel(const float* out_grad, const float* 
 }
 
 __global__ void noncontig_denominator_div_grad_kernel(const float* out_grad, const float* out_data,
-                                                      float* prev_grad, float* denominator, int n,
-                                                      const int* prev_shape,
+                                                      float* prev_grad, const float* denominator,
+                                                      int n, const int* prev_shape,
                                                       const int* prev_strides, int prev_ndim,
                                                       const int* out_shape, const int* out_strides,
                                                       int out_ndim)
 {
-    int idx = blockDim.x * blockIdx.x + threadIdx.x;
+    int idx = blockIdx.x * blockIdx.x + threadIdx.x;
     int stride = gridDim.x * blockDim.x;
 
     for (int i = idx; i < n; i += stride)
     {
-        int in_idx =
+        int out_offset =
+            get_broadcasted_input_idx(i, out_shape, out_ndim, out_shape, out_strides, out_ndim);
+        int prev_grad_offset =
             get_broadcasted_input_idx(i, out_shape, out_ndim, prev_shape, prev_strides, prev_ndim);
-        atomicAdd(&prev_grad[in_idx], -out_data[i] * out_grad[i] / (denominator[in_idx] + 1e-7f));
+        int denom_offset =
+            get_broadcasted_input_idx(i, out_shape, out_ndim, prev_shape, prev_strides, prev_ndim);
+        atomicAdd(&prev_grad[prev_grad_offset], -out_data[out_offset] * out_grad[out_offset] /
+                                                    (denominator[denom_offset] + 1e-7f));
     }
 }
 
@@ -65,7 +53,7 @@ __global__ void scalar_div_grad_kernel(const float* out_grad, float* prev_grad,
                                        float scalar_denominator, int n)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
+    int stride = gridDim.x * blockDim.x;
 
     for (int i = idx; i < n; i += stride)
     {
@@ -79,10 +67,7 @@ void div_grad_op_cuda(Tensor* out, Tensor** prev, int n_prev, void* extras)
 
     assert(out && "Output tensor cannot be NULL");
     assert(out->grad && "Output tensor gradient cannot be NULL");
-    assert(out->grad->data && "Output tensor gradient data cannot be NULL");
-    assert(out->grad->data->data && "Output tensor gradient data pointer cannot be NULL");
     assert(prev && "Previous tensors array cannot be NULL");
-    assert((n_prev == 1 || n_prev == 2) && "n_prev must be 1 or 2 for div_grad_op_cuda");
 
     int N = numel(out->shape, out->ndim);
     int num_threads_per_block = 256;
@@ -92,100 +77,81 @@ void div_grad_op_cuda(Tensor* out, Tensor** prev, int n_prev, void* extras)
     {
         assert(extras && "Extras (scalar value) cannot be NULL for scalar division");
         float scalar_denominator = *((float*) extras);
-        assert(prev[0] && "Previous tensor 0 cannot be NULL");
-        assert(prev[0]->data && "Previous tensor 0 data cannot be NULL");
-        assert(prev[0]->data->data && "Previous tensor 0 data pointer cannot be NULL");
-        if (prev[0]->requires_grad)
+        Tensor* a = prev[0];
+        if (a->requires_grad)
         {
-            assert(prev[0]->grad && "Previous tensor 0 gradient cannot be NULL if requires_grad");
-            assert(prev[0]->grad->data &&
-                   "Previous tensor 0 gradient data cannot be NULL if requires_grad");
-            assert(prev[0]->grad->data->data &&
-                   "Previous tensor 0 gradient data pointer cannot be NULL if requires_grad");
             scalar_div_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                out->grad->data->data, prev[0]->grad->data->data, scalar_denominator, N);
+                out->grad->data->data, a->grad->data->data, scalar_denominator, N);
             CHECK_CUDA();
         }
     }
     else
     {
-        assert(prev[0] && "Previous tensor 0 (numerator) cannot be NULL");
-        assert(prev[0]->data && "Previous tensor 0 (numerator) data cannot be NULL");
-        assert(prev[0]->data->data && "Previous tensor 0 (numerator) data pointer cannot be NULL");
-        assert(prev[1] && "Previous tensor 1 (denominator) cannot be NULL");
-        assert(prev[1]->data && "Previous tensor 1 (denominator) data cannot be NULL");
-        assert(prev[1]->data->data &&
-               "Previous tensor 1 (denominator) data pointer cannot be NULL");
+        Tensor* a = prev[0];
+        Tensor* b = prev[1];
 
-        if (prev[0]->requires_grad)
+        // Grad for a (numerator): da = dout * (1/b)
+        if (a->requires_grad)
         {
-            assert(prev[0]->grad && "Previous tensor 0 gradient cannot be NULL if requires_grad");
-            assert(prev[0]->grad->data &&
-                   "Previous tensor 0 gradient data cannot be NULL if requires_grad");
-            assert(prev[0]->grad->data->data &&
-                   "Previous tensor 0 gradient data pointer cannot be NULL if requires_grad");
-            if (is_contiguous(prev[0]))
+            if (shapes_equal(a->shape, a->ndim, out->shape, out->ndim) &&
+                shapes_equal(b->shape, b->ndim, out->shape, out->ndim) && is_contiguous(a) &&
+                is_contiguous(b) && is_contiguous(out))
             {
                 numerator_div_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[0]->grad->data->data, prev[1]->data->data, N);
+                    out->grad->data->data, a->grad->data->data, b->data->data, N);
             }
             else
             {
-                int* d_out_shape;
-                int* d_out_strides;
-
-                cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
-                cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
-
-                cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
-                cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
+                int *d_out_shape, *d_out_strides, *d_a_shape, *d_a_strides, *d_b_shape,
+                    *d_b_strides;
+                copy_shape_and_strides_to_device(out->shape, out->strides, out->ndim, &d_out_shape,
+                                                 &d_out_strides);
+                copy_shape_and_strides_to_device(a->shape, a->strides, a->ndim, &d_a_shape,
+                                                 &d_a_strides);
+                copy_shape_and_strides_to_device(b->shape, b->strides, b->ndim, &d_b_shape,
+                                                 &d_b_strides);
 
                 noncontig_numerator_div_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, prev[0]->grad->data->data, prev[1]->data->data, N,
-                    prev[0]->shape, prev[0]->strides, prev[0]->ndim, d_out_shape, d_out_strides,
-                    out->ndim);
+                    out->grad->data->data, a->grad->data->data, b->data->data, N, d_a_shape,
+                    d_a_strides, a->ndim, d_b_shape, d_b_strides, b->ndim, d_out_shape,
+                    d_out_strides, out->ndim);
 
                 cudaFree(d_out_shape);
                 cudaFree(d_out_strides);
+                cudaFree(d_a_shape);
+                cudaFree(d_a_strides);
+                cudaFree(d_b_shape);
+                cudaFree(d_b_strides);
             }
             CHECK_CUDA();
         }
 
-        if (prev[1]->requires_grad)
+        // Grad for b (denominator): db = -dout * a / b^2 = -dout * out / b
+        if (b->requires_grad)
         {
-            assert(prev[1]->grad && "Previous tensor 1 gradient cannot be NULL if requires_grad");
-            assert(prev[1]->grad->data &&
-                   "Previous tensor 1 gradient data cannot be NULL if requires_grad");
-            assert(prev[1]->grad->data->data &&
-                   "Previous tensor 1 gradient data pointer cannot be NULL if requires_grad");
-            if (is_contiguous(prev[1]))
+            if (shapes_equal(a->shape, a->ndim, out->shape, out->ndim) &&
+                shapes_equal(b->shape, b->ndim, out->shape, out->ndim) && is_contiguous(a) &&
+                is_contiguous(b) && is_contiguous(out))
             {
                 denominator_div_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, out->data->data, prev[1]->grad->data->data,
-                    prev[1]->data->data, N);
+                    out->grad->data->data, out->data->data, b->grad->data->data, b->data->data, N);
             }
             else
             {
-                int* d_out_shape;
-                int* d_out_strides;
-
-                cudaMalloc(&d_out_shape, out->ndim * sizeof(int));
-                cudaMalloc(&d_out_strides, out->ndim * sizeof(int));
-
-                cudaMemcpy(d_out_shape, out->shape, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
-                cudaMemcpy(d_out_strides, out->strides, out->ndim * sizeof(int),
-                           cudaMemcpyHostToDevice);
+                int *d_out_shape, *d_out_strides, *d_b_shape, *d_b_strides;
+                copy_shape_and_strides_to_device(out->shape, out->strides, out->ndim, &d_out_shape,
+                                                 &d_out_strides);
+                copy_shape_and_strides_to_device(b->shape, b->strides, b->ndim, &d_b_shape,
+                                                 &d_b_strides);
 
                 noncontig_denominator_div_grad_kernel<<<num_blocks, num_threads_per_block>>>(
-                    out->grad->data->data, out->data->data, prev[1]->grad->data->data,
-                    prev[1]->data->data, N, prev[1]->shape, prev[1]->strides, prev[1]->ndim,
-                    d_out_shape, d_out_strides, out->ndim);
+                    out->grad->data->data, out->data->data, b->grad->data->data, b->data->data, N,
+                    d_b_shape, d_b_strides, b->ndim, d_out_shape, d_out_strides, out->ndim);
 
                 cudaFree(d_out_shape);
                 cudaFree(d_out_strides);
+                cudaFree(d_b_shape);
+                cudaFree(d_b_strides);
             }
             CHECK_CUDA();
         }
