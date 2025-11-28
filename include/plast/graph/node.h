@@ -25,6 +25,7 @@ class Node
     bool is_leaf() const { return op_ == nullptr; }
     const std::shared_ptr<ops::BaseOperation> operation() const { return op_; }
     const std::vector<std::shared_ptr<Node>>& inputs() const { return inputs_; }
+    const std::vector<size_t>& shape() const { return shape_; }
 
     // For caching results during execution
     void set_cached_value(tensor::Tensor&& value);
@@ -36,6 +37,7 @@ class Node
     std::shared_ptr<ops::BaseOperation> op_;
     std::vector<std::shared_ptr<Node>> inputs_;
     std::optional<tensor::Tensor> cached_value_; // Store computed result
+    std::vector<size_t> shape_;
 };
 
 } // namespace graph

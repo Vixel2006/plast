@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
-# Import the new pybind11 module
-from .. import _plast_cpp_core
+import plast._plast_cpp_core as _plast_cpp_core
+
+from ..core.device import Device, get_default_device
 
 # Map Python types to C++ DTypes
 _DTYPE_MAP = {
@@ -20,7 +21,6 @@ _DTYPE_MAP = {
     np.uint32: _plast_cpp_core.DType.UINT32,
     np.uint64: _plast_cpp_core.DType.UINT64,
     np.bool_: _plast_cpp_core.DType.BOOL,
-    # Add more as needed
 }
 
 # Reverse map for converting C++ DType to numpy dtype
@@ -79,18 +79,16 @@ class Tensor:
             if cpp_dtype is None:
                 raise ValueError(f"Unsupported numpy dtype: {dtype}")
 
-            cpp_device = _plast_cpp_core.DeviceType.CPU  # Default to CPU for now
-            if device == "cuda":
-                cpp_device = _plast_cpp_core.DeviceType.CUDA
-            elif device is not None and device != "cpu":
-                raise ValueError(f"Unsupported device: {device}")
+            # Determine device
+            if device is None:
+                actual_device = get_default_device()
+            else:
+                actual_device = Device.parse(device)
+            cpp_device = actual_device.cpp_device_type
 
-            # Create a C++ Tensor object from numpy data
-            # This part needs careful implementation in C++ to avoid double-free or memory leaks.
-            # For now, we'll create a C++ Tensor that allocates memory, and we'll
-            # assume the data is copied into it later.
-            cpp_tensor_value = _plast_cpp_core.Tensor(
-                list(shape), cpp_dtype, cpp_device
+            # Create a C++ Tensor object from numpy data using from_data
+            cpp_tensor_value = _plast_cpp_core.from_data(
+                data, list(shape), cpp_dtype, cpp_device
             )
             self._cpp_node = _plast_cpp_core.Node(cpp_tensor_value)
         else:
@@ -111,11 +109,12 @@ class Tensor:
             if cpp_dtype is None:
                 raise ValueError(f"Unsupported numpy dtype: {dtype}")
 
-            cpp_device = _plast_cpp_core.DeviceType.CPU
-            if device == "cuda":
-                cpp_device = _plast_cpp_core.DeviceType.CUDA
-            elif device != "cpu":
-                raise ValueError(f"Unsupported device: {device}")
+            # Determine device
+            if device is None:
+                actual_device = get_default_device()
+            else:
+                actual_device = Device.parse(device)
+            cpp_device = actual_device.cpp_device_type
 
             # Create a C++ Tensor object that allocates memory based on shape, dtype, device
             cpp_tensor_value = _plast_cpp_core.Tensor(
@@ -130,12 +129,8 @@ class Tensor:
         """
         cpp_tensor = _execution_engine.execute(self._cpp_node)
 
-        # Placeholder: In a real scenario, you'd copy data from C++ Tensor to numpy array
-        # or create a view if possible.
-        return np.zeros(
-            shape=tuple(cpp_tensor.shape),
-            dtype=_REVERSE_DTYPE_MAP.get(cpp_tensor.dtype),
-        )  # Placeholder
+        # Use the new pybind11 method to get data as a numpy array
+        return cpp_tensor._get_data_as_numpy()
 
     @property
     def shape(self) -> Tuple[int, ...]:
@@ -159,20 +154,29 @@ class Tensor:
             return "cuda"
         return "unknown"
 
-    def to(self, device: str) -> Tensor:
-        # This would create a new C++ Node for device transfer
-        # For now, return self
-        return self
+    def to(self, target_device_str: str) -> Tensor:
+        # Execute the graph up to this node to get the concrete C++ Tensor
+        cpp_tensor_value = _execution_engine.execute(self._cpp_node)
 
-    def __add__(self, other: Tensor | float) -> Tensor:
+        # Parse the target device string to get the C++ DeviceType
+        target_device = Device.parse(target_device_str)
+        target_cpp_device = target_device.cpp_device_type
+
+        # Call the C++ Tensor's to() method for device transfer
+        new_cpp_tensor_value = cpp_tensor_value.to(target_cpp_device)
+
+        # Create a new C++ Node wrapping the new C++ Tensor
+        new_cpp_node = _plast_cpp_core.Node(new_cpp_tensor_value)
+
+        # Return a new Python Tensor instance wrapping the new C++ Node
+        return Tensor(cpp_node=new_cpp_node)
+
+    def __add__(self, other: Tensor | float | int) -> Tensor:
         if isinstance(other, Tensor):
             new_cpp_node = _plast_cpp_core.add_op_node(self._cpp_node, other._cpp_node)
             return Tensor(cpp_node=new_cpp_node)
         elif isinstance(other, (int, float)):
-            # Handle scalar addition by creating a scalar tensor
-            scalar_tensor = Tensor(
-                data=np.array(other, dtype=np.float32)
-            )  # Assuming float32 for scalar
+            scalar_tensor = Tensor(data=np.array(other, dtype=np.float32))
             new_cpp_node = _plast_cpp_core.add_op_node(
                 self._cpp_node, scalar_tensor._cpp_node
             )
@@ -182,16 +186,28 @@ class Tensor:
                 f"Unsupported operand type(s) for +: 'Tensor' and '{type(other)}'"
             )
 
-    def __sub__(self, other: Tensor | float) -> Tensor:
+    def __sub__(self, other: Tensor | float | int) -> Tensor:
         if isinstance(other, Tensor):
             new_cpp_node = _plast_cpp_core.sub_op_node(self._cpp_node, other._cpp_node)
             return Tensor(cpp_node=new_cpp_node)
         elif isinstance(other, (int, float)):
-            # Handle scalar subtraction by creating a scalar tensor
-            scalar_tensor = Tensor(
-                data=np.array(other, dtype=np.float32)
-            )  # Assuming float32 for scalar
+            scalar_tensor = Tensor(data=np.array(other, dtype=np.float32))
             new_cpp_node = _plast_cpp_core.sub_op_node(
+                self._cpp_node, scalar_tensor._cpp_node
+            )
+            return Tensor(cpp_node=new_cpp_node)
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for -: 'Tensor' and '{type(other)}'"
+            )
+
+    def __mul__(self, other: Tensor | float | int) -> Tensor:
+        if isinstance(other, Tensor):
+            new_cpp_node = _plast_cpp_core.mul_op_node(self._cpp_node, other._cpp_node)
+            return Tensor(cpp_node=new_cpp_node)
+        elif isinstance(other, (int, float)):
+            scalar_tensor = Tensor(data=np.array(other, dtype=np.float32))
+            new_cpp_node = _plast_cpp_core.mul_op_node(
                 self._cpp_node, scalar_tensor._cpp_node
             )
             return Tensor(cpp_node=new_cpp_node)
@@ -222,27 +238,39 @@ class Tensor:
 
 # Example usage (for testing the Python side)
 if __name__ == "__main__":
-    # Create some tensors
-    a = Tensor(data=[[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
-    b = Tensor(data=[[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
+    # Create some tensors on CPU
+    a_cpu = Tensor(data=[[1.0, 2.0], [3.0, 4.0]], dtype=np.float32, device="cpu")
+    b_cpu = Tensor(data=[[5.0, 6.0], [7.0, 8.0]], dtype=np.float32, device="cpu")
 
-    # Perform an operation
-    c = a + b
+    # Perform an operation on CPU
+    c_cpu = b_cpu * a_cpu
 
     # Access data (triggers execution)
-    print("Result of a + b:")
-    print(c.data)
-    print(f"Shape: {c.shape}, DType: {c.dtype}, Device: {c.device}")
+    print("Result of a_cpu + b_cpu:")
+    print(c_cpu.data)
+    print(f"Shape: {c_cpu.shape}, DType: {c_cpu.dtype}, Device: {c_cpu.device}")
 
-    # Add with scalar
-    d = c + 10.0
-    print("\nResult of c + 10.0:")
-    print(d.data)
-    print(f"Shape: {d.shape}, DType: {d.dtype}, Device: {d.device}")
+    """
+    # Create some tensors on CUDA
+    a_cuda = Tensor(data=[[1.0, 2.0], [3.0, 4.0]], dtype=np.float32, device="cuda")
+    b_cuda = Tensor(data=[[5.0, 6.0], [7.0, 8.0]], dtype=np.float32, device="cuda")
 
-    # Test device transfer (placeholder)
-    e = a.to("cuda")
-    print(f"\nTensor 'e' device: {e.device}")
+    # Perform an operation on CUDA
+    c_cuda = a_cuda + b_cuda
+
+    # Access data (triggers execution)
+    print("\nResult of a_cuda + b_cuda:")
+    print(c_cuda.data)
+    print(f"Shape: {c_cuda.shape}, DType: {c_cuda.dtype}, Device: {c_cuda.device}")
+    # Test device transfer and then add
+    a_cpu_to_cuda = a_cpu.to("cuda")
+    c_mixed_device = a_cpu_to_cuda + b_cuda
+    print("\nResult of (a_cpu.to('cuda')) + b_cuda:")
+    print(c_mixed_device.data)
+    print(
+        f"Shape: {c_mixed_device.shape}, DType: {c_mixed_device.dtype}, Device: {c_mixed_device.device}"
+    )
+    """
 
     # Clear engine cache (if implemented)
     _execution_engine.clear_cache()

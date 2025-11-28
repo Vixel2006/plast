@@ -10,11 +10,19 @@ Node::Node(std::shared_ptr<ops::BaseOperation> op, const std::vector<std::shared
     if (!op_) {
         throw std::runtime_error("Operation cannot be null for an operation node.");
     }
+
+    // Infer output shape from inputs
+    std::vector<std::vector<size_t>> input_shapes;
+    input_shapes.reserve(inputs_.size());
+    for (const auto& input_node : inputs_) {
+        input_shapes.push_back(input_node->shape());
+    }
+    shape_ = op_->infer_output_shape(input_shapes);
 }
 
 // Constructor for leaf nodes (input tensors with actual values)
 Node::Node(const tensor::Tensor& value)
-    : op_(nullptr), inputs_({}), cached_value_(value.clone()) {}
+    : op_(nullptr), inputs_({}), cached_value_(value.clone()), shape_(value.shape()) {}
 
 void Node::set_cached_value(tensor::Tensor&& value) {
     cached_value_ = std::move(value); // Store by moving

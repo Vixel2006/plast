@@ -45,6 +45,11 @@ ENV/
 *.pybind11_build/
 nawah*.so  # compiled module like `Nawah.cpython-312-x86_64-linux-gnu.so`
 
+# --- Clang ---
+.clangd
+.clang-format
+.supr.supp
+
 # --- Misc ---
 .DS_Store
 Thumbs.db

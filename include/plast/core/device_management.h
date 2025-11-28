@@ -33,9 +33,9 @@ void get_cuda_memory_info(int device_id, size_t* free_mem, size_t* total_mem);
 
 // Utility for CUDA error checking
 #ifdef PLAST_CUDA_ENABLED
-#define PLAST_CUDA_CHECK(ans)                                                                       \
+#define PLAST_CUDA_CHECK(ans)                                                                      \
     {                                                                                              \
-        plast::core::plast_cuda_assert((ans), __FILE__, __LINE__);                                               \
+        plast::core::plast_cuda_assert((ans), __FILE__, __LINE__);                                 \
     }
 inline void plast_cuda_assert(cudaError_t code, const char* file, int line, bool abort = true)
 {
@@ -46,7 +46,7 @@ inline void plast_cuda_assert(cudaError_t code, const char* file, int line, bool
     }
 }
 #else
-#define PLAST_CUDA_CHECK(ans)                                                                       \
+#define PLAST_CUDA_CHECK(ans)                                                                      \
     {                                                                                              \
     } // No-op if CUDA is not enabled
 #endif
