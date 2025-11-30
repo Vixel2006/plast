@@ -1,4 +1,5 @@
 #include "plast/core/device_management.h"
+#include "plast/core/data_buffer.h" // Include for PLAST_CUDA_CHECK
 #include <iostream>
 #include <stdexcept>
 

@@ -47,7 +47,7 @@ ExecutionEngine::topological_sort(std::shared_ptr<graph::Node> root_node)
     return sorted_nodes;
 }
 
-tensor::Tensor ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
+std::shared_ptr<plast::tensor::Tensor> ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
 {
     if (!root_node)
     {
@@ -56,12 +56,12 @@ tensor::Tensor ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
 
     std::vector<std::shared_ptr<graph::Node>> sorted_nodes = topological_sort(root_node);
 
-    // Clear cached values for all NON-LEAF nodes in the current graph before execution
+    // Clear output tensors for all NON-LEAF nodes in the current graph before execution
     for (const auto& node : sorted_nodes)
     {
         if (!node->is_leaf())
         {
-            node->clear_cached_value();
+            node->clear_output_tensor();
         }
     }
 
@@ -69,10 +69,10 @@ tensor::Tensor ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
     {
         if (node->is_leaf())
         {
-            if (!node->has_cached_value())
+            if (!node->has_output_tensor())
             {
                 throw std::runtime_error(
-                    "Leaf node without cached value encountered during execution.");
+                    "Leaf node without output tensor encountered during execution.");
             }
             continue;
         }
@@ -81,12 +81,12 @@ tensor::Tensor ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
         std::vector<const tensor::Tensor*> inputs_for_op;
         for (const auto& input_node : node->inputs())
         {
-            if (!input_node->has_cached_value())
+            if (!input_node->has_output_tensor())
             {
                 throw std::runtime_error(
                     "Input node value not computed before its dependent operation.");
             }
-            inputs_for_op.push_back(&input_node->get_cached_value());
+            inputs_for_op.push_back(input_node->get_output_tensor().get());
         }
 
         // Execute the operation
@@ -110,12 +110,12 @@ tensor::Tensor ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
         if (target_device == core::DeviceType::CPU)
         {
             tensor::Tensor output_tensor = node->operation()->execute_cpu(inputs_for_op);
-            node->set_cached_value(std::move(output_tensor)); // Cache the result
+            node->set_output_tensor(std::make_shared<plast::tensor::Tensor>(std::move(output_tensor))); // Cache the result
         }
         else if (target_device == core::DeviceType::CUDA)
         {
             tensor::Tensor output_tensor = node->operation()->execute_cuda(inputs_for_op);
-            node->set_cached_value(std::move(output_tensor)); // Cache the result
+            node->set_output_tensor(std::make_shared<plast::tensor::Tensor>(std::move(output_tensor))); // Cache the result
         }
         else
         {
@@ -124,11 +124,11 @@ tensor::Tensor ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
     }
 
     // The result of the root node is the final output
-    if (!root_node->has_cached_value())
+    if (!root_node->has_output_tensor())
     {
         throw std::runtime_error("Root node value not computed after graph execution.");
     }
-    return root_node->get_cached_value().clone();
+    return root_node->get_output_tensor(); // Return the shared_ptr
 }
 
 void ExecutionEngine::clear_cache()

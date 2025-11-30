@@ -1,3 +1,4 @@
+#include "plast/core/shape_utils_c.h" // For get_index, increment_indices
 #include "plast/kernels/cpu/binary_kernels.h"
 #include <immintrin.h>
 #include <math.h>
@@ -77,4 +78,123 @@ void plast_cpu_matmul_kernel_int32(int32_t* out, const int32_t* in1, const int32
             }
         }
     }
+}
+
+void plast_cpu_matmul_kernel_strided_float(float* out, const float* in1, const float* in2,
+                                           const size_t* out_shape, size_t out_ndim,
+                                           const size_t* in1_strides, const size_t* in2_strides,
+                                           const size_t* in1_shape, const size_t* in2_shape)
+{
+    size_t total_elements = 1;
+    for (size_t i = 0; i < out_ndim; ++i)
+    {
+        total_elements *= out_shape[i];
+    }
+
+    size_t* current_indices = (size_t*) calloc(out_ndim, sizeof(size_t));
+    if (!current_indices)
+    {
+        // Handle allocation error
+        return;
+    }
+
+    // Determine K from input shapes. Assuming in1_shape is (..., N, K) and in2_shape is (..., K, M)
+    // K is the last dimension of in1_shape (out_ndim - 1)
+    size_t K_dim = in1_shape[out_ndim - 1];
+
+    for (size_t i = 0; i < total_elements; ++i)
+    {
+        float sum = 0.0f;
+        // current_indices now represents the (batch, N, M) indices for the output
+        // We need to iterate K times for the dot product
+
+        // Extract N and M from out_shape for easier indexing
+        size_t N_val = out_shape[out_ndim - 2];
+        size_t M_val = out_shape[out_ndim - 1];
+
+        // Calculate the row and col for the current output element
+        size_t out_row = current_indices[out_ndim - 2];
+        size_t out_col = current_indices[out_ndim - 1];
+
+        // Calculate the base indices for in1 and in2, excluding the last two dimensions
+        size_t in1_base_idx = 0;
+        size_t in2_base_idx = 0;
+        for (size_t d = 0; d < out_ndim - 2; ++d)
+        {
+            in1_base_idx += current_indices[d] * in1_strides[d];
+            in2_base_idx += current_indices[d] * in2_strides[d];
+        }
+
+        for (size_t k = 0; k < K_dim; ++k)
+        {
+            // Calculate the full index for in1 (..., N, k)
+            size_t in1_idx =
+                in1_base_idx + out_row * in1_strides[out_ndim - 2] + k * in1_strides[out_ndim - 1];
+            // Calculate the full index for in2 (..., k, M)
+            size_t in2_idx =
+                in2_base_idx + k * in2_strides[out_ndim - 2] + out_col * in2_strides[out_ndim - 1];
+
+            sum += in1[in1_idx] * in2[in2_idx];
+        }
+        out[i] = sum;
+
+        increment_indices(current_indices, out_shape, out_ndim);
+    }
+    free(current_indices);
+}
+
+void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1, const int32_t* in2,
+                                           const size_t* out_shape, size_t out_ndim,
+                                           const size_t* in1_strides, const size_t* in2_strides,
+                                           const size_t* in1_shape, const size_t* in2_shape)
+{
+    size_t total_elements = 1;
+    for (size_t i = 0; i < out_ndim; ++i)
+    {
+        total_elements *= out_shape[i];
+    }
+
+    size_t* current_indices = (size_t*) calloc(out_ndim, sizeof(size_t));
+    if (!current_indices)
+    {
+        // Handle allocation error
+        return;
+    }
+
+    // Determine K from input shapes. Assuming in1_shape is (..., N, K) and in2_shape is (..., K, M)
+    // K is the last dimension of in1_shape (out_ndim - 1)
+    size_t K_dim = in1_shape[out_ndim - 1];
+
+    for (size_t i = 0; i < total_elements; ++i)
+    {
+        int32_t sum = 0;
+
+        size_t N_val = out_shape[out_ndim - 2];
+        size_t M_val = out_shape[out_ndim - 1];
+
+        size_t out_row = current_indices[out_ndim - 2];
+        size_t out_col = current_indices[out_ndim - 1];
+
+        size_t in1_base_idx = 0;
+        size_t in2_base_idx = 0;
+        for (size_t d = 0; d < out_ndim - 2; ++d)
+        {
+            in1_base_idx += current_indices[d] * in1_strides[d];
+            in2_base_idx += current_indices[d] * in2_strides[d];
+        }
+
+        for (size_t k = 0; k < K_dim; ++k)
+        {
+            size_t in1_idx =
+                in1_base_idx + out_row * in1_strides[out_ndim - 2] + k * in1_strides[out_ndim - 1];
+            size_t in2_idx =
+                in2_base_idx + k * in2_strides[out_ndim - 2] + out_col * in2_strides[out_ndim - 1];
+
+            sum += in1[in1_idx] * in2[in2_idx];
+        }
+        out[i] = sum;
+
+        increment_indices(current_indices, out_shape, out_ndim);
+    }
+    free(current_indices);
 }

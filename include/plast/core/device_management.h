@@ -31,12 +31,8 @@ std::string get_device_properties(DeviceType type, int device_id);
 // Get free and total memory for a CUDA device
 void get_cuda_memory_info(int device_id, size_t* free_mem, size_t* total_mem);
 
-// Utility for CUDA error checking
+// Utility for CUDA error checking (PLAST_CUDA_CHECK is now defined in data_buffer.h)
 #ifdef PLAST_CUDA_ENABLED
-#define PLAST_CUDA_CHECK(ans)                                                                      \
-    {                                                                                              \
-        plast::core::plast_cuda_assert((ans), __FILE__, __LINE__);                                 \
-    }
 inline void plast_cuda_assert(cudaError_t code, const char* file, int line, bool abort = true)
 {
     if (code != cudaSuccess)
@@ -45,10 +41,6 @@ inline void plast_cuda_assert(cudaError_t code, const char* file, int line, bool
         if (abort) exit(code);
     }
 }
-#else
-#define PLAST_CUDA_CHECK(ans)                                                                      \
-    {                                                                                              \
-    } // No-op if CUDA is not enabled
 #endif
 
 } // namespace core

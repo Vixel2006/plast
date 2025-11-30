@@ -1,3 +1,4 @@
+#include "plast/core/shape_utils_c.h" // For get_index, increment_indices
 #include "plast/kernels/cpu/unary_kernels.h"
 
 #include <immintrin.h>
@@ -24,4 +25,30 @@ void plast_cpu_relu_kernel_float(float* out, const float* in, size_t num_element
     {
         out[i] = fmaxf(0.0f, in[i]);
     }
+}
+
+void plast_cpu_relu_kernel_strided_float(float* out, const float* in, const size_t* out_shape,
+                                         size_t out_ndim, const size_t* in_strides)
+{
+    size_t total_elements = 1;
+    for (size_t i = 0; i < out_ndim; ++i)
+    {
+        total_elements *= out_shape[i];
+    }
+
+    size_t* current_indices = (size_t*) calloc(out_ndim, sizeof(size_t));
+    if (!current_indices)
+    {
+        // Handle allocation error
+        return;
+    }
+
+    for (size_t i = 0; i < total_elements; ++i)
+    {
+        size_t in_idx = get_index(current_indices, in_strides, out_ndim);
+        out[i] = fmaxf(0.0f, in[in_idx]);
+
+        increment_indices(current_indices, out_shape, out_ndim);
+    }
+    free(current_indices);
 }

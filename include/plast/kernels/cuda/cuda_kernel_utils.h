@@ -1,37 +1,18 @@
 #pragma once
 
-#include <cuda_runtime.h>
-#include <stdexcept>
+#include <stddef.h> // For size_t
 
-// Macro to check for CUDA errors
-#define CHECK_CUDA_ERROR()                                                                         \
-    do                                                                                             \
-    {                                                                                              \
-        cudaError_t err = cudaGetLastError();                                                      \
-        if (err != cudaSuccess)                                                                    \
-        {                                                                                          \
-            throw std::runtime_error(std::string("CUDA error at ") + __FILE__ + ":" +              \
-                                     std::to_string(__LINE__) + ": " + cudaGetErrorString(err));   \
-        }                                                                                          \
-    } while (0)
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
-namespace plast
-{
-namespace kernels
-{
-namespace cuda
-{
+    // CUDA device function to get the linear index from multi-dimensional indices and strides.
+    __device__ size_t cuda_get_index(const size_t* current_indices, const size_t* strides, size_t ndim);
 
-// Function to determine optimal grid and block dimensions for CUDA kernel launch
-inline void get_grid_and_block_dims(size_t num_elements, dim3& grid_dims, dim3& block_dims)
-{
-    // A common practice is to use 256 or 512 threads per block
-    // For simplicity, let's use 256 threads per block
-    const size_t threads_per_block = 256;
-    block_dims = dim3(threads_per_block);
-    grid_dims = dim3((num_elements + threads_per_block - 1) / threads_per_block);
+    // CUDA device function to increment multi-dimensional indices based on the shape.
+    __device__ void cuda_increment_indices(size_t* current_indices, const size_t* shape, size_t ndim);
+
+#ifdef __cplusplus
 }
-
-} // namespace cuda
-} // namespace kernels
-} // namespace plast
+#endif

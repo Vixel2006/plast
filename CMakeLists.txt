@@ -34,6 +34,7 @@ endif()
 # This will be a static library containing all the new C++ core components
 add_library(plast_cpp_core_lib STATIC
     src/plast/core/device_management.cpp
+    src/plast/core/shape_utils.cpp
     src/plast/graph/node.cpp
     src/plast/execution/engine.cpp
     src/plast/tensor/tensor.cpp
@@ -46,12 +47,17 @@ add_library(plast_cpp_core_lib STATIC
     src/plast/ops/unary/exp.cpp
     src/plast/ops/unary/log.cpp
     src/plast/ops/unary/leaky_relu.cpp
+    src/plast/ops/reduction/min.cpp
+    src/plast/ops/reduction/mean.cpp
+    src/plast/ops/reduction/sum.cpp
+    src/plast/ops/reduction/max.cpp
     src/plast/ops/movement/view.cpp 
     src/plast/ops/movement/squeeze.cpp 
     src/plast/ops/movement/unsqueeze.cpp 
     src/plast/ops/movement/transpose.cpp
     src/plast/ops/movement/expand.cpp
     src/plast/ops/movement/broadcast.cpp 
+    src/plast/kernels/cuda/cuda_kernel_utils.cu # Added CUDA utility functions
     src/plast/kernels/cuda/init_kernels.cu
     src/plast/kernels/cuda/add_kernels.cu
     src/plast/kernels/cuda/sub_kernels.cu
@@ -70,6 +76,10 @@ add_library(plast_cpp_core_lib STATIC
     src/plast/kernels/cpu/exp_kernels.c
     src/plast/kernels/cpu/log_kernels.c
     src/plast/kernels/cpu/leaky_relu_kernels.c
+    src/plast/kernels/cpu/min_kernels.c
+    src/plast/kernels/cpu/mean_kernels.c
+    src/plast/kernels/cpu/sum_kernels.c
+    src/plast/kernels/cpu/max_kernels.c
     src/plast/ops/init/init.cpp
 )
 

@@ -3,10 +3,12 @@
 #include "plast/core/types.h"
 #include "plast/ops/base_op.h"
 #include "plast/tensor/tensor.h"
+#include "plast/core/shape_utils_cpp.h" // For core::broadcast_shapes
 
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <numeric> // For std::iota
 
 namespace plast
 {
@@ -30,48 +32,70 @@ class MatmulOperation : public BaseOperation
             throw std::runtime_error("Matmul operation requires exactly two input tensors.");
         }
 
-        std::vector<size_t> lhs_shape = input_shapes[0];
-        std::vector<size_t> rhs_shape = input_shapes[1];
+        const std::vector<size_t>& lhs_shape = input_shapes[0];
+        const std::vector<size_t>& rhs_shape = input_shapes[1];
 
         size_t lhs_ndim = lhs_shape.size();
         size_t rhs_ndim = rhs_shape.size();
 
-        if (lhs_ndim < 2 || lhs_ndim < 2)
+        if (lhs_ndim < 1 || rhs_ndim < 1)
         {
-            throw std::runtime_error("Matmul operation can't be done on a tensor with ndim < 2.");
+            throw std::runtime_error("Matmul operation can't be done on a scalar.");
         }
 
-        if (lhs_ndim != rhs_ndim)
-        {
-            throw std::runtime_error(
-                "Matmul operation can't be done on tensors with different ndim.");
+        // Handle vector-matrix, matrix-vector, vector-vector cases
+        // If either is 1D, treat as (1, D) or (D, 1)
+        std::vector<size_t> effective_lhs_shape = lhs_shape;
+        std::vector<size_t> effective_rhs_shape = rhs_shape;
+
+        if (lhs_ndim == 1) {
+            effective_lhs_shape.insert(effective_lhs_shape.begin(), 1); // (D) -> (1, D)
+            lhs_ndim++;
+        }
+        if (rhs_ndim == 1) {
+            effective_rhs_shape.push_back(1); // (D) -> (D, 1)
+            rhs_ndim++;
         }
 
-        std::vector<size_t> output_shape(lhs_ndim);
-
-        for (size_t i = 0; i < lhs_ndim - 2; ++i)
+        if (lhs_ndim < 2 || rhs_ndim < 2)
         {
-            if (lhs_shape[i] != rhs_shape[i])
-            {
-                throw std::runtime_error(
-                    "Matmul operation can't be done on tensors with different batch dims");
-            }
-
-            output_shape[i] = lhs_shape[i];
+            throw std::runtime_error("Matmul operation requires inputs with at least 2 dimensions after handling 1D tensors.");
         }
 
-        size_t N = lhs_shape[lhs_ndim - 2];
-        size_t K1 = lhs_shape[lhs_ndim - 1];
-        size_t K2 = rhs_shape[rhs_ndim - 2];
-        size_t M = rhs_shape[rhs_ndim - 1];
+        // Extract batch dimensions
+        std::vector<size_t> lhs_batch_shape(effective_lhs_shape.begin(), effective_lhs_shape.end() - 2);
+        std::vector<size_t> rhs_batch_shape(effective_rhs_shape.begin(), effective_rhs_shape.end() - 2);
+
+        // Broadcast batch dimensions
+        std::vector<size_t> output_batch_shape = core::broadcast_shapes(lhs_batch_shape, rhs_batch_shape);
+
+        // Extract N, K, M
+        size_t N = effective_lhs_shape[lhs_ndim - 2];
+        size_t K1 = effective_lhs_shape[lhs_ndim - 1];
+        size_t K2 = effective_rhs_shape[rhs_ndim - 2];
+        size_t M = effective_rhs_shape[rhs_ndim - 1];
 
         if (K1 != K2)
         {
-            throw std::runtime_error("Matmul operation can't be done on tensors with different K.");
+            throw std::runtime_error("Matmul operation: K dimensions do not match.");
         }
 
-        output_shape[lhs_ndim - 2] = N;
-        output_shape[lhs_ndim - 1] = M;
+        // Construct final output shape
+        std::vector<size_t> output_shape = output_batch_shape;
+        output_shape.push_back(N);
+        output_shape.push_back(M);
+
+        // If original inputs were 1D, adjust output shape back
+        if (lhs_shape.size() == 1 && rhs_shape.size() == 1) {
+            // Vector-vector dot product results in scalar
+            return {}; // Empty vector for scalar
+        } else if (lhs_shape.size() == 1) {
+            // Vector-matrix product, output is (M)
+            output_shape.erase(output_shape.begin()); // Remove the prepended 1
+        } else if (rhs_shape.size() == 1) {
+            // Matrix-vector product, output is (N)
+            output_shape.pop_back(); // Remove the appended 1
+        }
 
         return output_shape;
     }

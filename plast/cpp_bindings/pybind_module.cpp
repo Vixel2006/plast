@@ -14,12 +14,16 @@
 #include "plast/ops/binary/mul.h"
 #include "plast/ops/binary/sub.h"
 #include "plast/ops/init/init_ops.h"
+#include "plast/ops/movement/broadcast.h"
+#include "plast/ops/movement/expand.h"
 #include "plast/ops/movement/squeeze.h"
 #include "plast/ops/movement/transpose.h"
 #include "plast/ops/movement/unsqueeze.h"
 #include "plast/ops/movement/view.h"
-#include "plast/ops/movement/expand.h"
-#include "plast/ops/movement/broadcast.h"
+#include "plast/ops/reduction/max.h"
+#include "plast/ops/reduction/mean.h"
+#include "plast/ops/reduction/min.h"
+#include "plast/ops/reduction/sum.h"
 #include "plast/ops/unary/abs.h"
 #include "plast/ops/unary/exp.h"
 #include "plast/ops/unary/leaky_relu.h"
@@ -56,8 +60,10 @@ PYBIND11_MODULE(_plast_cpp_core, m)
         .export_values();
 
     // Bind Tensor class
-    py::class_<plast::tensor::Tensor>(m, "Tensor")
-        .def(py::init<const std::vector<size_t>&, plast::core::DType, plast::core::DeviceType>(),
+    py::class_<plast::tensor::Tensor, std::shared_ptr<plast::tensor::Tensor>>(m, "Tensor")
+        .def(py::init([](const std::vector<size_t>& shape, plast::core::DType dtype,
+                         plast::core::DeviceType device)
+                      { return std::make_shared<plast::tensor::Tensor>(shape, dtype, device); }),
              py::arg("shape"), py::arg("dtype"), py::arg("device"))
         .def_property_readonly("shape", &plast::tensor::Tensor::shape)
         .def_property_readonly("strides", &plast::tensor::Tensor::strides)
@@ -153,13 +159,15 @@ PYBIND11_MODULE(_plast_cpp_core, m)
 
     // Bind Node class (using std::shared_ptr for ownership management)
     py::class_<plast::graph::Node, std::shared_ptr<plast::graph::Node>>(m, "Node")
-        .def(py::init<const plast::tensor::Tensor&>(), py::arg("value")) // For leaf nodes
+        .def(py::init([](std::shared_ptr<plast::tensor::Tensor> value)
+                      { return std::make_shared<plast::graph::Node>(value); }),
+             py::arg("value")) // For leaf nodes, takes shared_ptr to Tensor
         .def_property_readonly("is_leaf", &plast::graph::Node::is_leaf)
         .def_property_readonly("operation", &plast::graph::Node::operation)
         .def_property_readonly("inputs", &plast::graph::Node::inputs)
         .def_property_readonly("shape", &plast::graph::Node::shape) // Expose the shape property
-        .def("has_cached_value", &plast::graph::Node::has_cached_value)
-        .def("get_cached_value", &plast::graph::Node::get_cached_value);
+        .def("has_output_tensor", &plast::graph::Node::has_output_tensor)
+        .def("get_output_tensor", &plast::graph::Node::get_output_tensor);
 
     // Bind BaseOperation abstract class
     py::class_<plast::ops::BaseOperation, std::shared_ptr<plast::ops::BaseOperation>>(
@@ -211,23 +219,59 @@ PYBIND11_MODULE(_plast_cpp_core, m)
                std::shared_ptr<plast::ops::BroadcastOperation>>(m, "BroadcastOperation")
         .def(py::init<const std::vector<size_t>&>(), py::arg("target_shape"));
 
+    py::class_<plast::ops::MinOperation, plast::ops::BaseOperation,
+               std::shared_ptr<plast::ops::MinOperation>>(m, "MinOperation")
+        .def(py::init<int, bool>(), py::arg("dim"), py::arg("keepdim"))
+        .def(py::init<bool>(), py::arg("full_reduction"));
+
+    py::class_<plast::ops::MeanOperation, plast::ops::BaseOperation,
+               std::shared_ptr<plast::ops::MeanOperation>>(m, "MeanOperation")
+        .def(py::init<int, bool>(), py::arg("dim"), py::arg("keepdim"))
+        .def(py::init<bool>(), py::arg("full_reduction"));
+
+    py::class_<plast::ops::SumOperation, plast::ops::BaseOperation,
+               std::shared_ptr<plast::ops::SumOperation>>(m, "SumOperation")
+        .def(py::init<int, bool>(), py::arg("dim"), py::arg("keepdim"))
+        .def(py::init<bool>(), py::arg("full_reduction"));
+
+    py::class_<plast::ops::MaxOperation, plast::ops::BaseOperation,
+               std::shared_ptr<plast::ops::MaxOperation>>(m, "MaxOperation")
+        .def(py::init<int, bool>(), py::arg("dim"), py::arg("keepdim"))
+        .def(py::init<bool>(), py::arg("full_reduction"));
+
     // Bind ExecutionEngine class
     py::class_<plast::execution::ExecutionEngine>(m, "ExecutionEngine")
         .def(py::init<>())
-        .def("execute", &plast::execution::ExecutionEngine::execute, py::arg("root_node"))
-        .def("clear_cache", &plast::execution::ExecutionEngine::clear_cache);
+        .def("execute", &plast::execution::ExecutionEngine::execute);
 
     // Bind initialization functions
-    m.def("zeros", &plast::ops::init::zeros, py::arg("shape"), py::arg("dtype"), py::arg("device"));
-    m.def("ones", &plast::ops::init::ones, py::arg("shape"), py::arg("dtype"), py::arg("device"));
-    m.def("randn", &plast::ops::init::randn, py::arg("shape"), py::arg("dtype"), py::arg("device"),
-          py::arg("seed"));
-    m.def("uniform", &plast::ops::init::uniform, py::arg("shape"), py::arg("dtype"),
-          py::arg("device"), py::arg("low"), py::arg("high"));
+    m.def(
+        "zeros",
+        [](const std::vector<size_t>& shape, plast::core::DType dtype,
+           plast::core::DeviceType device)
+        { return plast::ops::init::zeros(shape, dtype, device); },
+        py::arg("shape"), py::arg("dtype"), py::arg("device"));
+    m.def(
+        "ones",
+        [](const std::vector<size_t>& shape, plast::core::DType dtype,
+           plast::core::DeviceType device) { return plast::ops::init::ones(shape, dtype, device); },
+        py::arg("shape"), py::arg("dtype"), py::arg("device"));
+    m.def(
+        "randn",
+        [](const std::vector<size_t>& shape, plast::core::DType dtype,
+           plast::core::DeviceType device, int seed)
+        { return plast::ops::init::randn(shape, dtype, device, seed); },
+        py::arg("shape"), py::arg("dtype"), py::arg("device"), py::arg("seed"));
+    m.def(
+        "uniform",
+        [](const std::vector<size_t>& shape, plast::core::DType dtype,
+           plast::core::DeviceType device, float low, float high)
+        { return plast::ops::init::uniform(shape, dtype, device, low, high); },
+        py::arg("shape"), py::arg("dtype"), py::arg("device"), py::arg("low"), py::arg("high"));
     m.def(
         "from_data",
         [](py::array data_array, const std::vector<size_t>& shape, plast::core::DType dtype,
-           plast::core::DeviceType device)
+           plast::core::DeviceType device) -> std::shared_ptr<plast::tensor::Tensor>
         {
             // Ensure the numpy array is contiguous and of the correct type
             py::buffer_info buf_info = data_array.request();
@@ -404,4 +448,88 @@ PYBIND11_MODULE(_plast_cpp_core, m)
                 op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
         },
         py::arg("input"), py::arg("target_shape"));
+
+    // Min operations
+    m.def(
+        "min_op_node_full",
+        [](std::shared_ptr<plast::graph::Node> input)
+        {
+            auto op = std::make_shared<plast::ops::MinOperation>(true); // full_reduction = true
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"));
+
+    m.def(
+        "min_op_node_dim",
+        [](std::shared_ptr<plast::graph::Node> input, int dim, bool keepdim)
+        {
+            auto op = std::make_shared<plast::ops::MinOperation>(dim, keepdim);
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"), py::arg("dim"), py::arg("keepdim"));
+
+    // Mean operations
+    m.def(
+        "mean_op_node_full",
+        [](std::shared_ptr<plast::graph::Node> input)
+        {
+            auto op = std::make_shared<plast::ops::MeanOperation>(true); // full_reduction = true
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"));
+
+    m.def(
+        "mean_op_node_dim",
+        [](std::shared_ptr<plast::graph::Node> input, int dim, bool keepdim)
+        {
+            auto op = std::make_shared<plast::ops::MeanOperation>(dim, keepdim);
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"), py::arg("dim"), py::arg("keepdim"));
+
+    // Sum operations
+    m.def(
+        "sum_op_node_full",
+        [](std::shared_ptr<plast::graph::Node> input)
+        {
+            auto op = std::make_shared<plast::ops::SumOperation>(true); // full_reduction = true
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"));
+
+    m.def(
+        "sum_op_node_dim",
+        [](std::shared_ptr<plast::graph::Node> input, int dim, bool keepdim)
+        {
+            auto op = std::make_shared<plast::ops::SumOperation>(dim, keepdim);
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"), py::arg("dim"), py::arg("keepdim"));
+
+    // Max operations
+    m.def(
+        "max_op_node_full",
+        [](std::shared_ptr<plast::graph::Node> input)
+        {
+            auto op = std::make_shared<plast::ops::MaxOperation>(true); // full_reduction = true
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"));
+
+    m.def(
+        "max_op_node_dim",
+        [](std::shared_ptr<plast::graph::Node> input, int dim, bool keepdim)
+        {
+            auto op = std::make_shared<plast::ops::MaxOperation>(dim, keepdim);
+            return std::make_shared<plast::graph::Node>(
+                op, std::vector<std::shared_ptr<plast::graph::Node>>{input});
+        },
+        py::arg("input"), py::arg("dim"), py::arg("keepdim"));
 }

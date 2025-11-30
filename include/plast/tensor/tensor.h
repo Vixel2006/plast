@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "plast/core/data_buffer.h" // Include the new DataBuffer
 #include "plast/core/types.h"
 
 namespace plast
@@ -12,17 +13,22 @@ namespace plast
 namespace tensor
 {
 
+// Forward declaration for helper functions
+size_t get_dtype_size(core::DType dtype);
+std::vector<size_t> calculate_contiguous_strides(const std::vector<size_t>& shape);
+
 class Tensor
 {
   public:
-    // Constructors
-    Tensor(void* data, const std::vector<size_t>& shape, const std::vector<size_t>& strides,
-           core::DType dtype, core::DeviceType device, bool owns_data = true);
-    // Constructor for empty tensor (e.g., for output allocation)
+    // Constructor for creating a new tensor with allocated memory (contiguous strides)
     Tensor(const std::vector<size_t>& shape, core::DType dtype, core::DeviceType device);
 
-    // Destructor
-    ~Tensor();
+    // Constructor for creating a view (shares DataBuffer)
+    Tensor(std::shared_ptr<core::DataBuffer> buffer, const std::vector<size_t>& shape,
+           const std::vector<size_t>& strides, core::DType dtype);
+
+    // Destructor (shared_ptr handles DataBuffer deallocation)
+    ~Tensor() = default;
 
     // Delete copy constructor and assignment operator to prevent accidental deep copies
     // For explicit copies, use the .clone() method
@@ -34,11 +40,11 @@ class Tensor
     Tensor& operator=(Tensor&& other) noexcept;
 
     // Accessors
-    void* data() const { return data_; }
+    void* data() const;
     const std::vector<size_t>& shape() const { return shape_; }
     const std::vector<size_t>& strides() const { return strides_; }
     core::DType dtype() const { return dtype_; }
-    core::DeviceType device() const { return device_; }
+    core::DeviceType device() const;
     size_t num_elements() const;
     size_t nbytes() const;
 
@@ -52,11 +58,11 @@ class Tensor
     bool is_contiguous() const;
     template <typename T> T* data_as() const
     {
-        if (sizeof(T) != nbytes() / num_elements())
+        if (sizeof(T) != get_dtype_size(dtype_))
         {
             throw std::runtime_error("Data type mismatch for data_as() call.");
         }
-        return static_cast<T*>(data_);
+        return static_cast<T*>(data());
     }
 
     // Reshape method
@@ -69,19 +75,10 @@ class Tensor
                 const std::vector<size_t>& new_strides) const;
 
   private:
-    void* data_;
+    std::shared_ptr<core::DataBuffer> buffer_;
     std::vector<size_t> shape_;
     std::vector<size_t> strides_;
     core::DType dtype_;
-    core::DeviceType device_;
-    bool owns_data_; // If true, Tensor manages data memory
-
-    // Helper for memory allocation
-    void allocate_data();
-    // Helper for memory deallocation
-    void deallocate_data();
-    // Helper for deep copy of data
-    void copy_data_from(const Tensor& other);
 };
 
 } // namespace tensor

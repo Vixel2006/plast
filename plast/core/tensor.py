@@ -194,6 +194,9 @@ class Tensor:
                 f"Unsupported operand type(s) for +: 'Tensor' and '{type(other)}'"
             )
 
+    def __radd__(self, other: float | int) -> Tensor:
+        return self.__add__(other)
+
     def __sub__(self, other: Tensor | float | int) -> Tensor:
         if isinstance(other, Tensor):
             new_cpp_node = _plast_cpp_core.sub_op_node(self._cpp_node, other._cpp_node)
@@ -208,6 +211,14 @@ class Tensor:
             raise TypeError(
                 f"Unsupported operand type(s) for -: 'Tensor' and '{type(other)}'"
             )
+
+    def __rsub__(self, other: float | int) -> Tensor:
+        # For rsub (e.g., 5 - Tensor), it's equivalent to Tensor(5) - self
+        scalar_tensor = Tensor(data=np.array(other, dtype=np.float32))
+        new_cpp_node = _plast_cpp_core.sub_op_node(
+            scalar_tensor._cpp_node, self._cpp_node
+        )
+        return Tensor(cpp_node=new_cpp_node)
 
     def __mul__(self, other: Tensor | float | int) -> Tensor:
         if isinstance(other, Tensor):
@@ -327,13 +338,41 @@ class Tensor:
         new_cpp_node = _plast_cpp_core.broadcast_op_node(self._cpp_node, list(target_shape))
         return Tensor(cpp_node=new_cpp_node)
 
+    def min(self, dim: Optional[int] = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            new_cpp_node = _plast_cpp_core.min_op_node_full(self._cpp_node)
+        else:
+            new_cpp_node = _plast_cpp_core.min_op_node_dim(self._cpp_node, dim, keepdim)
+        return Tensor(cpp_node=new_cpp_node)
+
+    def mean(self, dim: Optional[int] = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            new_cpp_node = _plast_cpp_core.mean_op_node_full(self._cpp_node)
+        else:
+            new_cpp_node = _plast_cpp_core.mean_op_node_dim(self._cpp_node, dim, keepdim)
+        return Tensor(cpp_node=new_cpp_node)
+
+    def sum(self, dim: Optional[int] = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            new_cpp_node = _plast_cpp_core.sum_op_node_full(self._cpp_node)
+        else:
+            new_cpp_node = _plast_cpp_core.sum_op_node_dim(self._cpp_node, dim, keepdim)
+        return Tensor(cpp_node=new_cpp_node)
+
+    def max(self, dim: Optional[int] = None, keepdim: bool = False) -> Tensor:
+        if dim is None:
+            new_cpp_node = _plast_cpp_core.max_op_node_full(self._cpp_node)
+        else:
+            new_cpp_node = _plast_cpp_core.max_op_node_dim(self._cpp_node, dim, keepdim)
+        return Tensor(cpp_node=new_cpp_node)
+
     def __repr__(self) -> str:
         # For repr, we might not want to trigger full execution.
         # This would require the C++ Node to expose its inferred shape/dtype without execution.
         # For now, we'll execute to get details.
         try:
             cpp_tensor = _execution_engine.execute(self._cpp_node)
-            return f"Tensor(shape={tuple(cpp_tensor.shape)}, dtype={_REVERSE_DTYPE_MAP.get(cpp_tensor.dtype)}, device={self.device})"
+            return f"Tensor(shape={tuple(cpp_tensor.shape)}, dtype={_REVERSE_DTYPE_MAP.get(cpp_tensor.dtype)}, device={cpp_tensor.device})"
         except Exception as e:
             return f"Tensor(uncomputed_node, error_on_repr: {e})"
 
@@ -351,20 +390,16 @@ class Tensor:
 if __name__ == "__main__":
     # Create some tensors on CPU
     a_cpu = Tensor(data=[[1.0, 2.0], [3.0, 4.0]], dtype=np.float32, device="cpu")
-    b_cpu = Tensor(data=[[5.0, 6.0], [7.0, 8.0]], dtype=np.float32, device="cpu")
+    b_cpu = Tensor(data=[[[5.0, 6.0], [7.0, 8.0]], [[5.0, 6.0], [7.0, 8.0]]], dtype=np.float32, device="cpu")
 
     # Perform an operation on CPU
-    c_cpu = a_cpu @ b_cpu
+    c_cpu = a_cpu + b_cpu
 
     # Access data (triggers execution)
-    print("Result of a_cpu @ b_cpu:")
+    print("Result of a_cpu + b_cpu:")
     print(c_cpu.data)
     print(f"Shape: {c_cpu.shape}, DType: {c_cpu.dtype}, Device: {c_cpu.device}")
     
     # Example of expand: expand (2,2) to (1,2,2)
-    expanded_a = a_cpu.broadcast_to(2, 2, 2)
-    print("Result of a_cpu.expand(1, 2, 2):")
-    print(expanded_a.data)
-    print(f"Shape: {expanded_a.shape}, DType: {expanded_a.dtype}, Device: {expanded_a.device}")
+    print(a_cpu.max().data)
 
-    _execution_engine.clear_cache()

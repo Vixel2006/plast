@@ -3,6 +3,7 @@
 #include "plast/core/types.h"
 #include "plast/ops/base_op.h"
 #include "plast/tensor/tensor.h"
+#include "plast/core/shape_utils_cpp.h" // For core::broadcast_shapes
 #include <string>
 #include <vector>
 
@@ -27,14 +28,7 @@ class AddOperation : public BaseOperation
         {
             throw std::runtime_error("Add operation requires exactly two input tensors.");
         }
-        // For simplicity, assume same shape for now.
-        // Broadcasting logic would be more complex.
-        if (input_shapes[0] != input_shapes[1])
-        {
-            throw std::runtime_error("Add operation requires input tensors of the same shape "
-                                     "(broadcasting not yet implemented).");
-        }
-        return input_shapes[0];
+        return core::broadcast_shapes(input_shapes[0], input_shapes[1]);
     }
 
     tensor::Tensor execute_cpu(const std::vector<const tensor::Tensor*>& inputs) const override;

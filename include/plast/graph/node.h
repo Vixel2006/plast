@@ -20,24 +20,23 @@ class Node
     // Constructor for operation nodes
     Node(std::shared_ptr<ops::BaseOperation> op, const std::vector<std::shared_ptr<Node>>& inputs);
     // Constructor for leaf nodes (input tensors with actual values)
-    Node(const tensor::Tensor& value);
+    Node(std::shared_ptr<tensor::Tensor> value);
 
     bool is_leaf() const { return op_ == nullptr; }
     const std::shared_ptr<ops::BaseOperation> operation() const { return op_; }
     const std::vector<std::shared_ptr<Node>>& inputs() const { return inputs_; }
-    const std::vector<size_t>& shape() const { return shape_; }
+    const std::vector<size_t>& shape() const; // Now a method that gets shape from output_tensor_
 
     // For caching results during execution
-    void set_cached_value(tensor::Tensor&& value);
-    const tensor::Tensor& get_cached_value() const;
-    bool has_cached_value() const;
-    void clear_cached_value();
+    void set_output_tensor(std::shared_ptr<tensor::Tensor> value);
+    std::shared_ptr<tensor::Tensor> get_output_tensor() const;
+    bool has_output_tensor() const;
+    void clear_output_tensor();
 
   private:
     std::shared_ptr<ops::BaseOperation> op_;
     std::vector<std::shared_ptr<Node>> inputs_;
-    std::optional<tensor::Tensor> cached_value_; // Store computed result
-    std::vector<size_t> shape_;
+    std::shared_ptr<tensor::Tensor> output_tensor_; // Stores the actual tensor value (for leaf nodes) or computed result
 };
 
 } // namespace graph
