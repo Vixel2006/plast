@@ -1,4 +1,4 @@
-#include "plast/core/shape_utils_c.h" // For get_index
+#include "plast/core/shape_utils_c.h"
 #include "plast/kernels/cpu/binary_kernels.h"
 #include <immintrin.h>
 #include <math.h>
@@ -13,10 +13,10 @@ void plast_cpu_add_kernel_float(float* out, const float* in1, const float* in2, 
     size_t i = 0;
     for (; i + SIMD_WIDTH - 1 < num_elements; i += SIMD_WIDTH)
     {
-        __m256 x = _mm256_loadu_ps(in1 + i); // Use loadu_ps for unaligned access
+        __m256 x = _mm256_loadu_ps(in1 + i);
         __m256 y = _mm256_loadu_ps(in2 + i);
         __m256 z = _mm256_add_ps(x, y);
-        _mm256_storeu_ps(out + i, z); // Use storeu_ps for unaligned access
+        _mm256_storeu_ps(out + i, z);
     }
 
     // Handle remaining elements

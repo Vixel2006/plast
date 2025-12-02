@@ -1,5 +1,6 @@
 #pragma once
 
+#include "plast/core/shape_utils_cpp.h"
 #include "plast/core/types.h"
 #include "plast/ops/base_op.h"
 #include "plast/tensor/tensor.h"

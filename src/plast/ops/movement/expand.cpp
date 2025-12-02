@@ -1,7 +1,7 @@
 #include "plast/ops/movement/expand.h"
 
-#include <stdexcept>
 #include <numeric>
+#include <stdexcept>
 
 namespace plast
 {
@@ -19,18 +19,27 @@ tensor::Tensor ExpandOperation::execute_cpu(const std::vector<const tensor::Tens
     const std::vector<size_t>& input_shape = input_tensor->shape();
     const std::vector<size_t>& input_strides = input_tensor->strides();
 
-    if (input_shape.size() != new_shape_.size()) {
-        throw std::runtime_error("ExpandOperation: New shape must have the same number of dimensions as input shape.");
+    if (input_shape.size() != new_shape_.size())
+    {
+        throw std::runtime_error(
+            "ExpandOperation: New shape must have the same number of dimensions as input shape.");
     }
 
     std::vector<size_t> output_strides(new_shape_.size());
-    for (size_t i = 0; i < new_shape_.size(); ++i) {
-        if (input_shape[i] == 1 && new_shape_[i] > 1) {
+    for (size_t i = 0; i < new_shape_.size(); ++i)
+    {
+        if (input_shape[i] == 1 && new_shape_[i] > 1)
+        {
             output_strides[i] = 0; // Broadcast this dimension
-        } else if (input_shape[i] == new_shape_[i]) {
+        }
+        else if (input_shape[i] == new_shape_[i])
+        {
             output_strides[i] = input_strides[i];
-        } else {
-            throw std::runtime_error("ExpandOperation: Cannot expand non-singleton dimension to a different size.");
+        }
+        else
+        {
+            throw std::runtime_error(
+                "ExpandOperation: Cannot expand non-singleton dimension to a different size.");
         }
     }
 
@@ -48,18 +57,27 @@ tensor::Tensor ExpandOperation::execute_cuda(const std::vector<const tensor::Ten
     const std::vector<size_t>& input_shape = input_tensor->shape();
     const std::vector<size_t>& input_strides = input_tensor->strides();
 
-    if (input_shape.size() != new_shape_.size()) {
-        throw std::runtime_error("ExpandOperation: New shape must have the same number of dimensions as input shape.");
+    if (input_shape.size() != new_shape_.size())
+    {
+        throw std::runtime_error(
+            "ExpandOperation: New shape must have the same number of dimensions as input shape.");
     }
 
     std::vector<size_t> output_strides(new_shape_.size());
-    for (size_t i = 0; i < new_shape_.size(); ++i) {
-        if (input_shape[i] == 1 && new_shape_[i] > 1) {
+    for (size_t i = 0; i < new_shape_.size(); ++i)
+    {
+        if (input_shape[i] == 1 && new_shape_[i] > 1)
+        {
             output_strides[i] = 0; // Broadcast this dimension
-        } else if (input_shape[i] == new_shape_[i]) {
+        }
+        else if (input_shape[i] == new_shape_[i])
+        {
             output_strides[i] = input_strides[i];
-        } else {
-            throw std::runtime_error("ExpandOperation: Cannot expand non-singleton dimension to a different size.");
+        }
+        else
+        {
+            throw std::runtime_error(
+                "ExpandOperation: Cannot expand non-singleton dimension to a different size.");
         }
     }
 

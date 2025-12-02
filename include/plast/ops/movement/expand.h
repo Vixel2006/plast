@@ -4,9 +4,9 @@
 #include "plast/ops/base_op.h"
 #include "plast/tensor/tensor.h"
 
+#include <numeric>
 #include <string>
 #include <vector>
-#include <numeric>
 
 namespace plast
 {
@@ -24,20 +24,27 @@ class ExpandOperation : public BaseOperation
         return op_name;
     }
 
-    std::vector<size_t> infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
+    std::vector<size_t>
+    infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
     {
-        if (input_shapes.empty() || input_shapes[0].empty()) {
+        if (input_shapes.empty() || input_shapes[0].empty())
+        {
             throw std::runtime_error("ExpandOperation expects at least one input shape.");
         }
         const std::vector<size_t>& input_shape = input_shapes[0];
 
-        if (input_shape.size() != new_shape_.size()) {
-            throw std::runtime_error("ExpandOperation: New shape must have the same number of dimensions as input shape.");
+        if (input_shape.size() != new_shape_.size())
+        {
+            throw std::runtime_error("ExpandOperation: New shape must have the same number of "
+                                     "dimensions as input shape.");
         }
 
-        for (size_t i = 0; i < input_shape.size(); ++i) {
-            if (input_shape[i] != 1 && input_shape[i] != new_shape_[i]) {
-                throw std::runtime_error("ExpandOperation: Can only expand dimensions of size 1 or matching dimensions.");
+        for (size_t i = 0; i < input_shape.size(); ++i)
+        {
+            if (input_shape[i] != 1 && input_shape[i] != new_shape_[i])
+            {
+                throw std::runtime_error("ExpandOperation: Can only expand dimensions of size 1 or "
+                                         "matching dimensions.");
             }
         }
         return new_shape_;

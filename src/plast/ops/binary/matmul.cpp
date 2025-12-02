@@ -1,6 +1,6 @@
 #include "plast/ops/binary/matmul.h"
 #include "plast/core/device_management.h"
-#include "plast/core/shape_utils_cpp.h" // Added for broadcasting and strides
+#include "plast/core/shape_utils_cpp.h"
 #include "plast/kernels/cpu/binary_kernels.h"
 #include "plast/kernels/cuda/binary_kernels.h"
 
@@ -36,56 +36,52 @@ tensor::Tensor MatmulOperation::execute_cpu(const std::vector<const tensor::Tens
     // Allocate output tensor
     tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
 
-    // Convert output_shape_vec to size_t*
-    size_t* output_shape = new size_t[output_shape_vec.size()];
-    for (size_t i = 0; i < output_shape_vec.size(); ++i)
-    {
-        output_shape[i] = output_shape_vec[i];
-    }
     size_t output_ndim = output_shape_vec.size();
 
     // Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec = core::compute_strides(lhs.shape(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec = core::compute_strides(rhs.shape(), output_shape_vec);
-
-    size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
-    for (size_t i = 0; i < lhs_strides_vec.size(); ++i)
-    {
-        lhs_strides[i] = lhs_strides_vec[i];
-    }
-
-    size_t* rhs_strides = new size_t[rhs_strides_vec.size()];
-    for (size_t i = 0; i < rhs_strides_vec.size(); ++i)
-    {
-        rhs_strides[i] = rhs_strides_vec[i];
-    }
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
 
     // Pass original input shapes to the strided kernel for K dimension determination
-    size_t* lhs_original_shape = new size_t[lhs.shape().size()];
-    for (size_t i = 0; i < lhs.shape().size(); ++i)
+    const std::vector<size_t>& lhs_original_shape = lhs.shape();
+    const std::vector<size_t>& rhs_original_shape = rhs.shape();
+
+    // Replicate effective shape logic from infer_output_shape to get K_dim
+    std::vector<size_t> effective_lhs_shape = lhs_original_shape;
+    std::vector<size_t> effective_rhs_shape = rhs_original_shape;
+
+    size_t lhs_ndim_eff = lhs_original_shape.size();
+    size_t rhs_ndim_eff = rhs_original_shape.size();
+
+    if (lhs_ndim_eff == 1)
     {
-        lhs_original_shape[i] = lhs.shape()[i];
+        effective_lhs_shape.insert(effective_lhs_shape.begin(), 1); // (D) -> (1, D)
+        lhs_ndim_eff++;
+    }
+    if (rhs_ndim_eff == 1)
+    {
+        effective_rhs_shape.push_back(1); // (D) -> (D, 1)
+        rhs_ndim_eff++;
     }
 
-    size_t* rhs_original_shape = new size_t[rhs.shape().size()];
-    for (size_t i = 0; i < rhs.shape().size(); ++i)
-    {
-        rhs_original_shape[i] = rhs.shape()[i];
-    }
+    size_t K_dim = effective_lhs_shape[lhs_ndim_eff - 1];
 
     switch (dtype)
     {
     case core::DType::FLOAT32:
-        plast_cpu_matmul_kernel_strided_float(
-            output.data_as<float>(), lhs.data_as<const float>(), rhs.data_as<const float>(),
-            output_shape, output_ndim, lhs_strides, rhs_strides, lhs_original_shape,
-            rhs_original_shape);
+        plast_cpu_matmul_kernel_strided_float(output.data_as<float>(), lhs.data_as<const float>(),
+                                              rhs.data_as<const float>(), output_shape_vec.data(),
+                                              output_ndim, lhs_strides_vec.data(),
+                                              rhs_strides_vec.data(), lhs_original_shape.data(),
+                                              rhs_original_shape.data(), K_dim);
         break;
     case core::DType::INT32:
         plast_cpu_matmul_kernel_strided_int32(
             output.data_as<int32_t>(), lhs.data_as<const int32_t>(), rhs.data_as<const int32_t>(),
-            output_shape, output_ndim, lhs_strides, rhs_strides, lhs_original_shape,
-            rhs_original_shape);
+            output_shape_vec.data(), output_ndim, lhs_strides_vec.data(), rhs_strides_vec.data(),
+            lhs_original_shape.data(), rhs_original_shape.data(), K_dim);
         break;
     default:
         throw std::runtime_error("Unsupoorted DType for Matmul operation on CPU.");
@@ -108,26 +104,69 @@ tensor::Tensor MatmulOperation::execute_cuda(const std::vector<const tensor::Ten
 
     if (lhs.dtype() != rhs.dtype())
     {
-        throw std::runtime_error("DType mismatch for Matmul operation on cpu");
+        throw std::runtime_error("DType mismatch for Matmul operation on CUDA");
     }
 
     core::DType dtype = lhs.dtype();
 
-    std::vector<std::vector<size_t>> input_shapes = {lhs.shape(), rhs.shape()};
+    std::vector<std::vector<size_t>> input_shapes_vec = {lhs.shape(), rhs.shape()};
 
-    std::vector<size_t> output_shape = infer_output_shape(input_shapes);
+    std::vector<size_t> output_shape_vec = infer_output_shape(input_shapes_vec);
 
-    int B = 1;
-    for (int i = 0; i < output_shape.size() - 2; ++i)
+    // Allocate output tensor on CUDA device
+    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CUDA);
+
+    size_t output_ndim = output_shape_vec.size();
+
+    // Compute strides for lhs and rhs based on the broadcasted output shape
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
+
+    // Pass original input shapes to the strided kernel for K dimension determination
+    const std::vector<size_t>& lhs_original_shape = lhs.shape();
+    const std::vector<size_t>& rhs_original_shape = rhs.shape();
+
+    // Replicate effective shape logic from infer_output_shape to get K_dim
+    std::vector<size_t> effective_lhs_shape = lhs_original_shape;
+    std::vector<size_t> effective_rhs_shape = rhs_original_shape;
+
+    size_t lhs_ndim_eff = lhs_original_shape.size();
+    size_t rhs_ndim_eff = rhs_original_shape.size();
+
+    if (lhs_ndim_eff == 1)
     {
-        B *= output_shape[i];
+        effective_lhs_shape.insert(effective_lhs_shape.begin(), 1); // (D) -> (1, D)
+        lhs_ndim_eff++;
+    }
+    if (rhs_ndim_eff == 1)
+    {
+        effective_rhs_shape.push_back(1); // (D) -> (D, 1)
+        rhs_ndim_eff++;
     }
 
-    int N = output_shape[output_shape.size() - 2];
-    int M = output_shape[output_shape.size() - 1];
-    int K = lhs.shape()[output_shape.size() - 1];
+    size_t K_dim = effective_lhs_shape[lhs_ndim_eff - 1];
 
-    tensor::Tensor output(output_shape, lhs.dtype(), core::DeviceType::CPU);
+    switch (dtype)
+    {
+    case core::DType::FLOAT32:
+        plast_cuda_matmul_kernel_strided_float(output.data_as<float>(), lhs.data_as<const float>(),
+                                               rhs.data_as<const float>(), output_shape_vec.data(),
+                                               output_ndim, lhs_strides_vec.data(),
+                                               rhs_strides_vec.data(), lhs_original_shape.data(),
+                                               rhs_original_shape.data(), K_dim);
+        break;
+    case core::DType::INT32:
+        plast_cuda_matmul_kernel_strided_int32(
+            output.data_as<int32_t>(), lhs.data_as<const int32_t>(), rhs.data_as<const int32_t>(),
+            output_shape_vec.data(), output_ndim, lhs_strides_vec.data(), rhs_strides_vec.data(),
+            lhs_original_shape.data(), rhs_original_shape.data(), K_dim);
+        break;
+    default:
+        throw std::runtime_error("Unsupported DType for Matmul operation on CUDA.");
+    }
+
     return output;
 #else
     throw std::runtime_error(

@@ -4,10 +4,10 @@
 #include "plast/ops/base_op.h"
 #include "plast/tensor/tensor.h"
 
+#include <algorithm>
+#include <numeric>
 #include <string>
 #include <vector>
-#include <numeric>
-#include <algorithm>
 
 namespace plast
 {
@@ -25,9 +25,11 @@ class BroadcastOperation : public BaseOperation
         return op_name;
     }
 
-    std::vector<size_t> infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
+    std::vector<size_t>
+    infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
     {
-        if (input_shapes.empty() || input_shapes[0].empty()) {
+        if (input_shapes.empty() || input_shapes[0].empty())
+        {
             throw std::runtime_error("BroadcastOperation expects at least one input shape.");
         }
         const std::vector<size_t>& input_shape = input_shapes[0];
@@ -43,20 +45,30 @@ class BroadcastOperation : public BaseOperation
 
         // Pad with 1s to the left
         std::fill(padded_input_shape.begin(), padded_input_shape.end() - input_shape.size(), 1);
-        std::copy(input_shape.begin(), input_shape.end(), padded_input_shape.begin() + (max_dims - input_shape.size()));
+        std::copy(input_shape.begin(), input_shape.end(),
+                  padded_input_shape.begin() + (max_dims - input_shape.size()));
 
         std::fill(padded_target_shape.begin(), padded_target_shape.end() - target_shape_.size(), 1);
-        std::copy(target_shape_.begin(), target_shape_.end(), padded_target_shape.begin() + (max_dims - target_shape_.size()));
+        std::copy(target_shape_.begin(), target_shape_.end(),
+                  padded_target_shape.begin() + (max_dims - target_shape_.size()));
 
         std::vector<size_t> output_shape(max_dims);
-        for (size_t i = 0; i < max_dims; ++i) {
-            if (padded_input_shape[i] == padded_target_shape[i]) {
+        for (size_t i = 0; i < max_dims; ++i)
+        {
+            if (padded_input_shape[i] == padded_target_shape[i])
+            {
                 output_shape[i] = padded_input_shape[i];
-            } else if (padded_input_shape[i] == 1) {
+            }
+            else if (padded_input_shape[i] == 1)
+            {
                 output_shape[i] = padded_target_shape[i];
-            } else if (padded_target_shape[i] == 1) {
+            }
+            else if (padded_target_shape[i] == 1)
+            {
                 output_shape[i] = padded_input_shape[i];
-            } else {
+            }
+            else
+            {
                 throw std::runtime_error("BroadcastOperation: Shapes are not broadcastable.");
             }
         }

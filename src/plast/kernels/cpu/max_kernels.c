@@ -1,8 +1,8 @@
 #include "plast/kernels/cpu/reduction_kernels.h"
-#include <float.h>  // For FLT_MAX, -FLT_MAX
-#include <math.h>   // For NAN
-#include <stddef.h> // For size_t
-#include <stdint.h> // For int32_t, INT32_MAX, INT32_MIN
+#include <float.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 
 // Helper function to calculate total number of elements
 static size_t calculate_total_elements(const size_t* shape, size_t ndim)
@@ -16,7 +16,7 @@ static size_t calculate_total_elements(const size_t* shape, size_t ndim)
 }
 
 // Helper function to calculate strides
-// Note: This function assumes row-major order (C-style)
+// NOTE: This function assumes row-major order (C-style)
 static void calculate_strides(const size_t* shape, size_t ndim, size_t* strides)
 {
     if (ndim == 0) return;

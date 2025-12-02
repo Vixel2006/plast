@@ -1,8 +1,7 @@
 #include "plast/ops/reduction/max.h"
 #include "plast/core/device_management.h"
 #include "plast/core/types.h"
-#include "plast/kernels/cpu/reduction_kernels.h" // This header declares all reduction kernels
-// #include "plast/kernels/cuda/reduction_kernels.h" // CUDA kernels not yet defined
+#include "plast/kernels/cpu/reduction_kernels.h"
 
 #include <cstring>
 #include <numeric>
@@ -30,27 +29,29 @@ tensor::Tensor MaxOperation::execute_cpu(const std::vector<const tensor::Tensor*
     case core::DType::FLOAT32:
         if (full_reduction_)
         {
-            plast_cpu_max_full_reduction_float(input.data_as<const float>(), output.data_as<float>(),
-                                         input.shape().data(), input.shape().size());
+            plast_cpu_max_full_reduction_float(input.data_as<const float>(),
+                                               output.data_as<float>(), input.shape().data(),
+                                               input.shape().size());
         }
         else
         {
             plast_cpu_max_reduction_dim_float(input.data_as<const float>(), output.data_as<float>(),
-                                        input.shape().data(), input.shape().size(),
-                                        output.shape().data(), output.shape().size(), dim_);
+                                              input.shape().data(), input.shape().size(),
+                                              output.shape().data(), output.shape().size(), dim_);
         }
         break;
     case core::DType::INT32:
         if (full_reduction_)
         {
-            plast_cpu_max_full_reduction_int32(input.data_as<const int32_t>(), output.data_as<int32_t>(),
-                                         input.shape().data(), input.shape().size());
+            plast_cpu_max_full_reduction_int32(input.data_as<const int32_t>(),
+                                               output.data_as<int32_t>(), input.shape().data(),
+                                               input.shape().size());
         }
         else
         {
-            plast_cpu_max_reduction_dim_int32(input.data_as<const int32_t>(), output.data_as<int32_t>(),
-                                        input.shape().data(), input.shape().size(),
-                                        output.shape().data(), output.shape().size(), dim_);
+            plast_cpu_max_reduction_dim_int32(
+                input.data_as<const int32_t>(), output.data_as<int32_t>(), input.shape().data(),
+                input.shape().size(), output.shape().data(), output.shape().size(), dim_);
         }
         break;
     // Add more types as needed

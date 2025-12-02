@@ -1,6 +1,6 @@
 #include "plast/ops/binary/add.h"
 #include "plast/core/device_management.h"
-#include "plast/core/shape_utils_cpp.h" // Added for broadcasting and strides
+#include "plast/core/shape_utils_cpp.h"
 #include "plast/core/types.h"
 #include "plast/kernels/cpu/binary_kernels.h"
 #include "plast/kernels/cuda/binary_kernels.h"
@@ -33,6 +33,9 @@ tensor::Tensor AddOperation::execute_cpu(const std::vector<const tensor::Tensor*
     // 1. Determine output shape and strides based on broadcasting rules
     std::vector<size_t> output_shape_vec = core::broadcast_shapes(lhs.shape(), rhs.shape());
 
+    // Allocate output tensor
+    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
+
     // Convert output_shape_vec to size_t*
     size_t* output_shape = new size_t[output_shape_vec.size()];
     for (size_t i = 0; i < output_shape_vec.size(); ++i)
@@ -41,12 +44,11 @@ tensor::Tensor AddOperation::execute_cpu(const std::vector<const tensor::Tensor*
     }
     size_t output_ndim = output_shape_vec.size();
 
-    // Allocate output tensor
-    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
-
     // 2. Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec = core::compute_strides(lhs.shape(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec = core::compute_strides(rhs.shape(), output_shape_vec);
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
 
     size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
     for (size_t i = 0; i < lhs_strides_vec.size(); ++i)
@@ -96,9 +98,9 @@ tensor::Tensor AddOperation::execute_cpu(const std::vector<const tensor::Tensor*
                                                output_ndim, lhs_strides, rhs_strides);
             break;
         case core::DType::INT32:
-            plast_cpu_add_kernel_strided_int32(output.data_as<int32_t>(), lhs.data_as<const int32_t>(),
-                                               rhs.data_as<const int32_t>(), output_shape,
-                                               output_ndim, lhs_strides, rhs_strides);
+            plast_cpu_add_kernel_strided_int32(
+                output.data_as<int32_t>(), lhs.data_as<const int32_t>(),
+                rhs.data_as<const int32_t>(), output_shape, output_ndim, lhs_strides, rhs_strides);
             break;
         default:
             delete[] output_shape;
@@ -131,6 +133,9 @@ tensor::Tensor AddOperation::execute_cuda(const std::vector<const tensor::Tensor
     // 1. Determine output shape and strides based on broadcasting rules
     std::vector<size_t> output_shape_vec = core::broadcast_shapes(lhs.shape(), rhs.shape());
 
+    // Allocate output tensor on CUDA device
+    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CUDA);
+
     // Convert output_shape_vec to size_t*
     // Note: For CUDA kernels, we need to pass these arrays to device memory.
     // For simplicity here, we'll assume they are passed as host pointers and copied to device
@@ -143,12 +148,11 @@ tensor::Tensor AddOperation::execute_cuda(const std::vector<const tensor::Tensor
     }
     size_t output_ndim = output_shape_vec.size();
 
-    // Allocate output tensor on CUDA device
-    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CUDA);
-
     // 2. Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec = core::compute_strides(lhs.shape(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec = core::compute_strides(rhs.shape(), output_shape_vec);
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
 
     size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
     for (size_t i = 0; i < lhs_strides_vec.size(); ++i)
@@ -194,13 +198,13 @@ tensor::Tensor AddOperation::execute_cuda(const std::vector<const tensor::Tensor
         {
         case core::DType::FLOAT32:
             plast_cuda_add_kernel_strided_float(output.data_as<float>(), lhs.data_as<const float>(),
-                                               rhs.data_as<const float>(), output_shape,
-                                               output_ndim, lhs_strides, rhs_strides);
+                                                rhs.data_as<const float>(), output_shape,
+                                                output_ndim, lhs_strides, rhs_strides);
             break;
         case core::DType::INT32:
-            plast_cuda_add_kernel_strided_int32(output.data_as<int32_t>(), lhs.data_as<const int32_t>(),
-                                               rhs.data_as<const int32_t>(), output_shape,
-                                               output_ndim, lhs_strides, rhs_strides);
+            plast_cuda_add_kernel_strided_int32(
+                output.data_as<int32_t>(), lhs.data_as<const int32_t>(),
+                rhs.data_as<const int32_t>(), output_shape, output_ndim, lhs_strides, rhs_strides);
             break;
         default:
             delete[] output_shape;

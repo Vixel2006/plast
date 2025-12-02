@@ -4,9 +4,9 @@
 #include "plast/ops/base_op.h"
 #include "plast/tensor/tensor.h"
 
+#include <numeric>
 #include <string>
 #include <vector>
-#include <numeric>
 
 namespace plast
 {
@@ -24,10 +24,12 @@ class UnsqueezeOperation : public BaseOperation
         return op_name;
     }
 
-    std::vector<size_t> infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
+    std::vector<size_t>
+    infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
     {
         std::vector<size_t> output_shape = input_shapes[0];
-        if (dim_ > output_shape.size()) {
+        if (dim_ > output_shape.size())
+        {
             throw std::runtime_error("Unsqueeze dimension out of bounds.");
         }
         output_shape.insert(output_shape.begin() + dim_, 1);

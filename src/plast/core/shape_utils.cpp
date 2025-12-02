@@ -104,7 +104,8 @@ size_t get_index(const size_t* current_indices, const size_t* strides, size_t nd
         // In this case, the index for this dimension should effectively be 0,
         // so we don't multiply current_indices[i] by strides[i].
         // The element at index 0 of the original dimension is always accessed.
-        if (strides[i] != 0) {
+        if (strides[i] != 0)
+        {
             index += current_indices[i] * strides[i];
         }
     }
@@ -126,3 +127,50 @@ void increment_indices(size_t* current_indices, const size_t* shape, size_t ndim
         }
     }
 }
+
+namespace plast
+{
+namespace core
+{
+std::vector<size_t> get_effective_broadcast_strides(
+    const std::vector<size_t>& input_shape,
+    const std::vector<size_t>& input_actual_strides,
+    const std::vector<size_t>& target_shape)
+{
+    size_t input_ndim = input_shape.size();
+    size_t target_ndim = target_shape.size();
+    std::vector<size_t> result_strides(target_ndim);
+
+    for (int i = target_ndim - 1; i >= 0; --i)
+    {
+        int input_idx = i - (target_ndim - input_ndim);
+
+        if (input_idx < 0)
+        {
+            // Dimension was prepended, broadcast from 1 (stride 0)
+            result_strides[i] = 0;
+        }
+        else
+        {
+            if (input_shape[input_idx] == target_shape[i])
+            {
+                // Dimension matches, use actual stride from the input tensor
+                result_strides[i] = input_actual_strides[input_idx];
+            }
+            else if (input_shape[input_idx] == 1)
+            {
+                // Input dimension is 1, it's broadcasted, so stride is 0
+                result_strides[i] = 0;
+            }
+            else
+            {
+                // This case should ideally not happen if broadcast_shapes was called first
+                throw std::runtime_error(
+                    "Error in get_effective_broadcast_strides: non-broadcastable dimension.");
+            }
+        }
+    }
+    return result_strides;
+}
+} // namespace core
+} // namespace plast

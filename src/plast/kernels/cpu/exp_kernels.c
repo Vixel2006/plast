@@ -1,9 +1,9 @@
-#include "plast/core/shape_utils_c.h" // For get_index, increment_indices
+#include "plast/core/shape_utils_c.h"
 #include "plast/kernels/cpu/unary_kernels.h"
 
 #include <immintrin.h>
 #include <math.h>
-#include <sleef.h> // Include SLEEF SIMD header
+#include <sleef.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>

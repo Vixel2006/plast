@@ -1,4 +1,4 @@
-#include "plast/core/shape_utils_c.h" // For get_index
+#include "plast/core/shape_utils_c.h"
 #include "plast/kernels/cpu/binary_kernels.h"
 #include <immintrin.h>
 #include <math.h>

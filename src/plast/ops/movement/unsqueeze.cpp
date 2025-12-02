@@ -19,7 +19,8 @@ UnsqueezeOperation::execute_cpu(const std::vector<const tensor::Tensor*>& inputs
     std::vector<size_t> output_shape = input_tensor->shape();
     std::vector<size_t> output_strides = input_tensor->strides();
 
-    if (dim_ > output_shape.size()) {
+    if (dim_ > output_shape.size())
+    {
         throw std::runtime_error("Unsqueeze dimension out of bounds.");
     }
 
@@ -27,9 +28,12 @@ UnsqueezeOperation::execute_cpu(const std::vector<const tensor::Tensor*>& inputs
 
     // Calculate new stride for the inserted dimension
     size_t new_stride;
-    if (dim_ < output_strides.size()) {
+    if (dim_ < output_strides.size())
+    {
         new_stride = output_strides[dim_];
-    } else {
+    }
+    else
+    {
         // If inserting at the end, the new stride is 1 (for a dimension of size 1)
         new_stride = 1;
     }
@@ -51,7 +55,8 @@ UnsqueezeOperation::execute_cuda(const std::vector<const tensor::Tensor*>& input
     std::vector<size_t> output_shape = input_tensor->shape();
     std::vector<size_t> output_strides = input_tensor->strides();
 
-    if (dim_ > output_shape.size()) {
+    if (dim_ > output_shape.size())
+    {
         throw std::runtime_error("Unsqueeze dimension out of bounds.");
     }
 
@@ -59,9 +64,12 @@ UnsqueezeOperation::execute_cuda(const std::vector<const tensor::Tensor*>& input
 
     // Calculate new stride for the inserted dimension
     size_t new_stride;
-    if (dim_ < output_strides.size()) {
+    if (dim_ < output_strides.size())
+    {
         new_stride = output_strides[dim_];
-    } else {
+    }
+    else
+    {
         // If inserting at the end, the new stride is 1 (for a dimension of size 1)
         new_stride = 1;
     }

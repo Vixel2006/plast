@@ -25,7 +25,7 @@ class Node
     bool is_leaf() const { return op_ == nullptr; }
     const std::shared_ptr<ops::BaseOperation> operation() const { return op_; }
     const std::vector<std::shared_ptr<Node>>& inputs() const { return inputs_; }
-    const std::vector<size_t>& shape() const; // Now a method that gets shape from output_tensor_
+    const std::vector<size_t>& shape() const;
 
     // For caching results during execution
     void set_output_tensor(std::shared_ptr<tensor::Tensor> value);
@@ -36,7 +36,8 @@ class Node
   private:
     std::shared_ptr<ops::BaseOperation> op_;
     std::vector<std::shared_ptr<Node>> inputs_;
-    std::shared_ptr<tensor::Tensor> output_tensor_; // Stores the actual tensor value (for leaf nodes) or computed result
+    std::shared_ptr<tensor::Tensor>
+        output_tensor_; // Stores the actual tensor value (for leaf nodes) or computed result
 };
 
 } // namespace graph

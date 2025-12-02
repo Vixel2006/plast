@@ -24,8 +24,8 @@ namespace ops
 namespace init
 {
 
-std::shared_ptr<plast::tensor::Tensor> zeros(const std::vector<size_t>& shape, plast::core::DType dtype,
-                            plast::core::DeviceType device)
+std::shared_ptr<plast::tensor::Tensor>
+zeros(const std::vector<size_t>& shape, plast::core::DType dtype, plast::core::DeviceType device)
 {
     auto output = std::make_shared<plast::tensor::Tensor>(shape, dtype, device);
     // Dispatch to CPU or CUDA kernel
@@ -35,7 +35,8 @@ std::shared_ptr<plast::tensor::Tensor> zeros(const std::vector<size_t>& shape, p
         // For now, we'll just set to 0 manually or use memset
         if (dtype == plast::core::DType::FLOAT32)
         {
-            std::fill((float*) output->data(), (float*) output->data() + output->num_elements(), 0.0f);
+            std::fill((float*) output->data(), (float*) output->data() + output->num_elements(),
+                      0.0f);
         }
         else if (dtype == plast::core::DType::INT32)
         {
@@ -73,8 +74,8 @@ std::shared_ptr<plast::tensor::Tensor> zeros(const std::vector<size_t>& shape, p
     return output;
 }
 
-std::shared_ptr<plast::tensor::Tensor> ones(const std::vector<size_t>& shape, plast::core::DType dtype,
-                           plast::core::DeviceType device)
+std::shared_ptr<plast::tensor::Tensor>
+ones(const std::vector<size_t>& shape, plast::core::DType dtype, plast::core::DeviceType device)
 {
     auto output = std::make_shared<plast::tensor::Tensor>(shape, dtype, device);
     // Dispatch to CPU or CUDA kernel
@@ -82,7 +83,8 @@ std::shared_ptr<plast::tensor::Tensor> ones(const std::vector<size_t>& shape, pl
     {
         if (dtype == plast::core::DType::FLOAT32)
         {
-            std::fill((float*) output->data(), (float*) output->data() + output->num_elements(), 1.0f);
+            std::fill((float*) output->data(), (float*) output->data() + output->num_elements(),
+                      1.0f);
         }
         else if (dtype == plast::core::DType::INT32)
         {
@@ -119,8 +121,9 @@ std::shared_ptr<plast::tensor::Tensor> ones(const std::vector<size_t>& shape, pl
     return output;
 }
 
-std::shared_ptr<plast::tensor::Tensor> randn(const std::vector<size_t>& shape, plast::core::DType dtype,
-                            plast::core::DeviceType device, int seed)
+std::shared_ptr<plast::tensor::Tensor> randn(const std::vector<size_t>& shape,
+                                             plast::core::DType dtype,
+                                             plast::core::DeviceType device, int seed)
 {
     auto output = std::make_shared<plast::tensor::Tensor>(shape, dtype, device);
     // Dispatch to CPU or CUDA kernel
@@ -163,8 +166,10 @@ std::shared_ptr<plast::tensor::Tensor> randn(const std::vector<size_t>& shape, p
     return output;
 }
 
-std::shared_ptr<plast::tensor::Tensor> uniform(const std::vector<size_t>& shape, plast::core::DType dtype,
-                              plast::core::DeviceType device, float low, float high)
+std::shared_ptr<plast::tensor::Tensor> uniform(const std::vector<size_t>& shape,
+                                               plast::core::DType dtype,
+                                               plast::core::DeviceType device, float low,
+                                               float high)
 {
     auto output = std::make_shared<plast::tensor::Tensor>(shape, dtype, device);
     // Dispatch to CPU or CUDA kernel
@@ -209,7 +214,8 @@ std::shared_ptr<plast::tensor::Tensor> uniform(const std::vector<size_t>& shape,
 }
 
 std::shared_ptr<plast::tensor::Tensor> from_data(void* data, const std::vector<size_t>& shape,
-                                plast::core::DType dtype, plast::core::DeviceType device)
+                                                 plast::core::DType dtype,
+                                                 plast::core::DeviceType device)
 {
     auto output = std::make_shared<plast::tensor::Tensor>(shape, dtype, device);
     size_t num_elements = output->num_elements();

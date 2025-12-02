@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stddef.h> // For size_t
-#include <stdint.h> // For int32_t
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -41,16 +41,16 @@ extern "C"
     // CPU kernel for matrix multiplication of float tensors with strided access
     void plast_cpu_matmul_kernel_strided_float(float* out, const float* in1, const float* in2,
                                                const size_t* out_shape, size_t out_ndim,
-                                               const size_t* in1_strides,
-                                               const size_t* in2_strides,
-                                               const size_t* in1_shape, const size_t* in2_shape);
+                                               const size_t* in1_strides, const size_t* in2_strides,
+                                               const size_t* in1_shape, const size_t* in2_shape,
+                                               size_t K_dim);
 
     // CPU kernel for matrix multiplication of int32_t tensors with strided access
-    void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1,
-                                               const int32_t* in2, const size_t* out_shape,
-                                               size_t out_ndim, const size_t* in1_strides,
-                                               const size_t* in2_strides,
-                                               const size_t* in1_shape, const size_t* in2_shape);
+    void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1, const int32_t* in2,
+                                               const size_t* out_shape, size_t out_ndim,
+                                               const size_t* in1_strides, const size_t* in2_strides,
+                                               const size_t* in1_shape, const size_t* in2_shape,
+                                               size_t K_dim);
 
     // CPU kernel for element-wise addition of float tensors with strided access
     void plast_cpu_add_kernel_strided_float(float* out, const float* in1, const float* in2,

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "plast/core/data_buffer.h" // Include the new DataBuffer
+#include "plast/core/data_buffer.h"
 #include "plast/core/types.h"
 
 namespace plast
@@ -71,8 +71,7 @@ class Tensor
                    const std::vector<size_t>& new_strides) const;
 
     // View method for creating a new tensor with different shape/strides but same data
-    Tensor view(const std::vector<size_t>& new_shape,
-                const std::vector<size_t>& new_strides) const;
+    Tensor view(const std::vector<size_t>& new_shape, const std::vector<size_t>& new_strides) const;
 
   private:
     std::shared_ptr<core::DataBuffer> buffer_;

@@ -23,7 +23,8 @@ class SqueezeOperation : public BaseOperation
         return op_name;
     }
 
-    std::vector<size_t> infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
+    std::vector<size_t>
+    infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
     {
         std::vector<size_t> output_shape = input_shapes[0];
         if (N >= output_shape.size())

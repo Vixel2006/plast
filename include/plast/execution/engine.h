@@ -20,9 +20,6 @@ class ExecutionEngine
     // Executes the computation graph rooted at 'root_node'
     std::shared_ptr<tensor::Tensor> execute(std::shared_ptr<graph::Node> root_node);
 
-    // Clears the cached results of nodes after an execution run
-    void clear_cache();
-
   private:
     // Internal helper to perform topological sort
     std::vector<std::shared_ptr<graph::Node>>

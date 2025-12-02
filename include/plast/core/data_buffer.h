@@ -1,9 +1,9 @@
 #pragma once
 
 #include "plast/core/types.h"
-#include <cstddef> // For size_t
-#include <stdexcept> // For std::runtime_error
-#include <iostream> // For std::cerr in CUDA deallocation
+#include <cstddef>
+#include <iostream>
+#include <stdexcept>
 
 #ifdef PLAST_CUDA_ENABLED
 #include <cuda_runtime.h>
@@ -66,21 +66,20 @@ class DataBuffer
             break;
         case DeviceType::CUDA:
 #ifdef PLAST_CUDA_ENABLED
-            { // New scope for variable declaration
-                cudaError_t err = cudaFree(data_);
-                if (err != cudaSuccess)
-                {
-                    // Log error but don't throw in destructor
-                    std::cerr << "CUDA memory deallocation failed: " << cudaGetErrorString(err)
-                              << std::endl;
-                }
-            } // End new scope
+        {
+            cudaError_t err = cudaFree(data_);
+            if (err != cudaSuccess)
+            {
+                // Log error but don't throw in destructor
+                std::cerr << "CUDA memory deallocation failed: " << cudaGetErrorString(err)
+                          << std::endl;
+            }
+        }
 #else
             // Should not happen if allocation checked PLAST_CUDA_ENABLED
 #endif
-            break;
+        break;
         default:
-            // Should not happen
             break;
         }
         data_ = nullptr;
@@ -116,16 +115,16 @@ class DataBuffer
                     break;
                 case DeviceType::CUDA:
 #ifdef PLAST_CUDA_ENABLED
-                    { // New scope for variable declaration
-                        cudaError_t err = cudaFree(data_);
-                        if (err != cudaSuccess)
-                        {
-                            std::cerr << "CUDA memory deallocation failed during move assignment: "
-                                      << cudaGetErrorString(err) << std::endl;
-                        }
-                    } // End new scope
+                {
+                    cudaError_t err = cudaFree(data_);
+                    if (err != cudaSuccess)
+                    {
+                        std::cerr << "CUDA memory deallocation failed during move assignment: "
+                                  << cudaGetErrorString(err) << std::endl;
+                    }
+                }
 #endif
-                    break;
+                break;
                 default:
                     break;
                 }

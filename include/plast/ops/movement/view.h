@@ -23,7 +23,8 @@ class ViewOperation : public BaseOperation
         return op_name;
     }
 
-    std::vector<size_t> infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
+    std::vector<size_t>
+    infer_output_shape(const std::vector<std::vector<size_t>>& input_shapes) const override
     {
         // For view, the output shape is the new_shape provided at construction
         return new_shape_;

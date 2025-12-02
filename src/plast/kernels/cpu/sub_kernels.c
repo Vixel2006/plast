@@ -1,4 +1,4 @@
-#include "plast/core/shape_utils_c.h" // For get_index
+#include "plast/core/shape_utils_c.h"
 #include "plast/kernels/cpu/binary_kernels.h"
 #include <immintrin.h>
 #include <math.h>
@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define SIMD_WIDTH 8 // For __m256 (float)
+#define SIMD_WIDTH 8
 
 void plast_cpu_sub_kernel_float(float* out, const float* in1, const float* in2, size_t num_elements)
 {

@@ -33,7 +33,8 @@ tensor::Tensor SqueezeOperation::execute_cpu(const std::vector<const tensor::Ten
         return input_tensor->view(input_tensor->shape(), input_tensor->strides());
     }
 
-        return input_tensor->reshape(output_shape, output_strides);}
+    return input_tensor->reshape(output_shape, output_strides);
+}
 
 tensor::Tensor
 SqueezeOperation::execute_cuda(const std::vector<const tensor::Tensor*>& inputs) const
@@ -62,7 +63,8 @@ SqueezeOperation::execute_cuda(const std::vector<const tensor::Tensor*>& inputs)
         return input_tensor->view(input_tensor->shape(), input_tensor->strides());
     }
 
-        return input_tensor->reshape(output_shape, output_strides);}
+    return input_tensor->reshape(output_shape, output_strides);
+}
 
 } // namespace ops
 } // namespace plast

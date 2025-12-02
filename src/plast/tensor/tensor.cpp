@@ -1,5 +1,5 @@
 #include "plast/tensor/tensor.h"
-#include "plast/core/data_buffer.h" // Include the new DataBuffer
+#include "plast/core/data_buffer.h"
 #include "plast/core/types.h"
 #include <iostream>
 

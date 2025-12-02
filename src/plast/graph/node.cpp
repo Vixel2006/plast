@@ -8,7 +8,8 @@ namespace graph
 
 // Constructor for operation nodes
 Node::Node(std::shared_ptr<ops::BaseOperation> op, const std::vector<std::shared_ptr<Node>>& inputs)
-    : op_(std::move(op)), inputs_(inputs), output_tensor_(nullptr) // Explicitly null for operation nodes initially
+    : op_(std::move(op)), inputs_(inputs),
+      output_tensor_(nullptr) // Explicitly null for operation nodes initially
 {
     if (!op_)
     {
@@ -21,15 +22,18 @@ Node::Node(std::shared_ptr<ops::BaseOperation> op, const std::vector<std::shared
 Node::Node(std::shared_ptr<tensor::Tensor> value)
     : op_(nullptr), inputs_({}), output_tensor_(std::move(value)) // Store the shared_ptr directly
 {
-    if (!output_tensor_) {
+    if (!output_tensor_)
+    {
         throw std::runtime_error("Leaf node cannot be initialized with a null tensor.");
     }
 }
 
 const std::vector<size_t>& Node::shape() const
 {
-    if (!output_tensor_) {
-        throw std::runtime_error("Attempted to access shape from a node with no output tensor. Node has not been executed or is not a leaf node.");
+    if (!output_tensor_)
+    {
+        throw std::runtime_error("Attempted to access shape from a node with no output tensor. "
+                                 "Node has not been executed or is not a leaf node.");
     }
     return output_tensor_->shape();
 }

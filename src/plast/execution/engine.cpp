@@ -47,7 +47,8 @@ ExecutionEngine::topological_sort(std::shared_ptr<graph::Node> root_node)
     return sorted_nodes;
 }
 
-std::shared_ptr<plast::tensor::Tensor> ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
+std::shared_ptr<plast::tensor::Tensor>
+ExecutionEngine::execute(std::shared_ptr<graph::Node> root_node)
 {
     if (!root_node)
     {
@@ -110,12 +111,14 @@ std::shared_ptr<plast::tensor::Tensor> ExecutionEngine::execute(std::shared_ptr<
         if (target_device == core::DeviceType::CPU)
         {
             tensor::Tensor output_tensor = node->operation()->execute_cpu(inputs_for_op);
-            node->set_output_tensor(std::make_shared<plast::tensor::Tensor>(std::move(output_tensor))); // Cache the result
+            node->set_output_tensor(std::make_shared<plast::tensor::Tensor>(
+                std::move(output_tensor))); // Cache the result
         }
         else if (target_device == core::DeviceType::CUDA)
         {
             tensor::Tensor output_tensor = node->operation()->execute_cuda(inputs_for_op);
-            node->set_output_tensor(std::make_shared<plast::tensor::Tensor>(std::move(output_tensor))); // Cache the result
+            node->set_output_tensor(std::make_shared<plast::tensor::Tensor>(
+                std::move(output_tensor))); // Cache the result
         }
         else
         {
@@ -129,15 +132,6 @@ std::shared_ptr<plast::tensor::Tensor> ExecutionEngine::execute(std::shared_ptr<
         throw std::runtime_error("Root node value not computed after graph execution.");
     }
     return root_node->get_output_tensor(); // Return the shared_ptr
-}
-
-void ExecutionEngine::clear_cache()
-{
-    // This method is now primarily a placeholder.
-    // The `execute` method ensures that cached values for the current graph
-    // are cleared at the beginning of each execution.
-    // If a global cache clear is needed for all known nodes (e.g., for memory management),
-    // a more sophisticated tracking mechanism would be required.
 }
 
 } // namespace execution

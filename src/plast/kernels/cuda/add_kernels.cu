@@ -1,5 +1,5 @@
-#include "plast/core/types.h"                     // Include for MAX_TENSOR_DIMS
-#include "plast/kernels/cuda/cuda_kernel_utils.h" // Include for cuda_get_index and cuda_increment_indices
+#include "plast/core/types.h"
+#include "plast/kernels/cuda/cuda_kernel_utils.h"
 #include <cuda_runtime.h>
 #include <stdint.h>
 #include <stdio.h>

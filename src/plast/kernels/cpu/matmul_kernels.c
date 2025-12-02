@@ -1,4 +1,4 @@
-#include "plast/core/shape_utils_c.h" // For get_index, increment_indices
+#include "plast/core/shape_utils_c.h"
 #include "plast/kernels/cpu/binary_kernels.h"
 #include <immintrin.h>
 #include <math.h>
@@ -83,7 +83,8 @@ void plast_cpu_matmul_kernel_int32(int32_t* out, const int32_t* in1, const int32
 void plast_cpu_matmul_kernel_strided_float(float* out, const float* in1, const float* in2,
                                            const size_t* out_shape, size_t out_ndim,
                                            const size_t* in1_strides, const size_t* in2_strides,
-                                           const size_t* in1_shape, const size_t* in2_shape)
+                                           const size_t* in1_shape, const size_t* in2_shape,
+                                           size_t K_dim)
 {
     size_t total_elements = 1;
     for (size_t i = 0; i < out_ndim; ++i)
@@ -98,19 +99,11 @@ void plast_cpu_matmul_kernel_strided_float(float* out, const float* in1, const f
         return;
     }
 
-    // Determine K from input shapes. Assuming in1_shape is (..., N, K) and in2_shape is (..., K, M)
-    // K is the last dimension of in1_shape (out_ndim - 1)
-    size_t K_dim = in1_shape[out_ndim - 1];
-
     for (size_t i = 0; i < total_elements; ++i)
     {
         float sum = 0.0f;
         // current_indices now represents the (batch, N, M) indices for the output
         // We need to iterate K times for the dot product
-
-        // Extract N and M from out_shape for easier indexing
-        size_t N_val = out_shape[out_ndim - 2];
-        size_t M_val = out_shape[out_ndim - 1];
 
         // Calculate the row and col for the current output element
         size_t out_row = current_indices[out_ndim - 2];
@@ -146,7 +139,8 @@ void plast_cpu_matmul_kernel_strided_float(float* out, const float* in1, const f
 void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1, const int32_t* in2,
                                            const size_t* out_shape, size_t out_ndim,
                                            const size_t* in1_strides, const size_t* in2_strides,
-                                           const size_t* in1_shape, const size_t* in2_shape)
+                                           const size_t* in1_shape, const size_t* in2_shape,
+                                           size_t K_dim)
 {
     size_t total_elements = 1;
     for (size_t i = 0; i < out_ndim; ++i)
@@ -161,16 +155,9 @@ void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1, con
         return;
     }
 
-    // Determine K from input shapes. Assuming in1_shape is (..., N, K) and in2_shape is (..., K, M)
-    // K is the last dimension of in1_shape (out_ndim - 1)
-    size_t K_dim = in1_shape[out_ndim - 1];
-
     for (size_t i = 0; i < total_elements; ++i)
     {
         int32_t sum = 0;
-
-        size_t N_val = out_shape[out_ndim - 2];
-        size_t M_val = out_shape[out_ndim - 1];
 
         size_t out_row = current_indices[out_ndim - 2];
         size_t out_col = current_indices[out_ndim - 1];
