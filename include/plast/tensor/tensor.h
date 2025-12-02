@@ -44,6 +44,7 @@ class Tensor
     const std::vector<size_t>& shape() const { return shape_; }
     const std::vector<size_t>& strides() const { return strides_; }
     core::DType dtype() const { return dtype_; }
+    size_t ndim() const { return shape_.size(); }
     core::DeviceType device() const;
     size_t num_elements() const;
     size_t nbytes() const;

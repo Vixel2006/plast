@@ -30,6 +30,16 @@ void plast_cpu_leaky_relu_kernel_float(float* out, const float* in, size_t num_e
     }
 }
 
+void plast_cpu_leaky_relu_kernel_int32(int32_t* out, const int32_t* in, size_t num_elements,
+                                       float alpha)
+{
+    for (size_t i = 0; i < num_elements; ++i)
+    {
+        float val = (float) in[i];
+        out[i] = (int32_t) ((val > 0.0f) ? val : val * alpha);
+    }
+}
+
 void plast_cpu_leaky_relu_kernel_strided_float(float* out, const float* in, const size_t* out_shape,
                                                size_t out_ndim, const size_t* in_strides,
                                                float alpha)
@@ -51,6 +61,34 @@ void plast_cpu_leaky_relu_kernel_strided_float(float* out, const float* in, cons
     {
         size_t in_idx = get_index(current_indices, in_strides, out_ndim);
         out[i] = (in[in_idx] > 0.0f) ? in[in_idx] : in[in_idx] * alpha;
+
+        increment_indices(current_indices, out_shape, out_ndim);
+    }
+    free(current_indices);
+}
+
+void plast_cpu_leaky_relu_kernel_strided_int32(int32_t* out, const int32_t* in,
+                                               const size_t* out_shape, size_t out_ndim,
+                                               const size_t* in_strides, float alpha)
+{
+    size_t total_elements = 1;
+    for (size_t i = 0; i < out_ndim; ++i)
+    {
+        total_elements *= out_shape[i];
+    }
+
+    size_t* current_indices = (size_t*) calloc(out_ndim, sizeof(size_t));
+    if (!current_indices)
+    {
+        // Handle allocation error
+        return;
+    }
+
+    for (size_t i = 0; i < total_elements; ++i)
+    {
+        size_t in_idx = get_index(current_indices, in_strides, out_ndim);
+        float val = (float) in[in_idx];
+        out[i] = (int32_t) ((val > 0.0f) ? val : val * alpha);
 
         increment_indices(current_indices, out_shape, out_ndim);
     }
