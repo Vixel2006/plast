@@ -40,8 +40,10 @@ tensor::Tensor MulOperation::execute_cpu(const std::vector<const tensor::Tensor*
     tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
 
     // 2. Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec = core::compute_strides(lhs.shape(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec = core::compute_strides(rhs.shape(), output_shape_vec);
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
 
     size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
     for (size_t i = 0; i < lhs_strides_vec.size(); ++i)

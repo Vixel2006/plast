@@ -33,6 +33,9 @@ tensor::Tensor AddOperation::execute_cpu(const std::vector<const tensor::Tensor*
     // 1. Determine output shape and strides based on broadcasting rules
     std::vector<size_t> output_shape_vec = core::broadcast_shapes(lhs.shape(), rhs.shape());
 
+    // Allocate output tensor
+    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
+
     // Convert output_shape_vec to size_t*
     size_t* output_shape = new size_t[output_shape_vec.size()];
     for (size_t i = 0; i < output_shape_vec.size(); ++i)
@@ -41,12 +44,11 @@ tensor::Tensor AddOperation::execute_cpu(const std::vector<const tensor::Tensor*
     }
     size_t output_ndim = output_shape_vec.size();
 
-    // Allocate output tensor
-    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
-
     // 2. Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec = core::compute_strides(lhs.shape(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec = core::compute_strides(rhs.shape(), output_shape_vec);
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
 
     size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
     for (size_t i = 0; i < lhs_strides_vec.size(); ++i)
@@ -131,6 +133,9 @@ tensor::Tensor AddOperation::execute_cuda(const std::vector<const tensor::Tensor
     // 1. Determine output shape and strides based on broadcasting rules
     std::vector<size_t> output_shape_vec = core::broadcast_shapes(lhs.shape(), rhs.shape());
 
+    // Allocate output tensor on CUDA device
+    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CUDA);
+
     // Convert output_shape_vec to size_t*
     // Note: For CUDA kernels, we need to pass these arrays to device memory.
     // For simplicity here, we'll assume they are passed as host pointers and copied to device
@@ -143,12 +148,11 @@ tensor::Tensor AddOperation::execute_cuda(const std::vector<const tensor::Tensor
     }
     size_t output_ndim = output_shape_vec.size();
 
-    // Allocate output tensor on CUDA device
-    tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CUDA);
-
     // 2. Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec = core::compute_strides(lhs.shape(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec = core::compute_strides(rhs.shape(), output_shape_vec);
+    std::vector<size_t> lhs_strides_vec =
+        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
+    std::vector<size_t> rhs_strides_vec =
+        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
 
     size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
     for (size_t i = 0; i < lhs_strides_vec.size(); ++i)

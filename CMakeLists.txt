@@ -67,6 +67,7 @@ add_library(plast_cpp_core_lib STATIC
     src/plast/kernels/cuda/exp_kernels.cu
     src/plast/kernels/cuda/log_kernels.cu
     src/plast/kernels/cuda/leaky_relu_kernels.cu
+    src/plast/kernels/cuda/matmul_kernels.cu
     src/plast/kernels/cpu/add_kernels.c
     src/plast/kernels/cpu/sub_kernels.c
     src/plast/kernels/cpu/mul_kernels.c

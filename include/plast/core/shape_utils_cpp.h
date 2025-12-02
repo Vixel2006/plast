@@ -25,5 +25,12 @@ std::vector<size_t> calculate_strides(const std::vector<size_t>& shape);
 std::vector<size_t> compute_strides(const std::vector<size_t>& original_shape,
                                     const std::vector<size_t>& target_shape);
 
+// Function to compute effective strides for a tensor that might already have broadcasted
+// dimensions (i.e., 0 strides), when broadcasting it to a target shape.
+std::vector<size_t> get_effective_broadcast_strides(
+    const std::vector<size_t>& input_shape,
+    const std::vector<size_t>& input_actual_strides,
+    const std::vector<size_t>& target_shape);
+
 } // namespace core
 } // namespace plast
