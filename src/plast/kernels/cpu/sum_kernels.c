@@ -27,6 +27,21 @@ static void calculate_strides(const size_t* shape, size_t ndim, size_t* strides)
     }
 }
 
+// Helper function to get the physical index for a given logical flat index in a strided tensor
+static size_t get_physical_index(size_t logical_flat_idx, const size_t* shape, size_t ndim,
+                                 const size_t* strides)
+{
+    size_t physical_idx = 0;
+    size_t temp_flat_idx = logical_flat_idx;
+    for (int i = ndim - 1; i >= 0; --i)
+    {
+        size_t dim_coord = temp_flat_idx % shape[i];
+        physical_idx += dim_coord * strides[i];
+        temp_flat_idx /= shape[i];
+    }
+    return physical_idx;
+}
+
 // --- Full Reduction Kernels (float) ---
 
 void plast_cpu_sum_full_reduction_float(const float* input_data, float* output_data,
@@ -47,6 +62,26 @@ void plast_cpu_sum_full_reduction_float(const float* input_data, float* output_d
     output_data[0] = sum;
 }
 
+void plast_cpu_sum_full_reduction_strided_float(const float* input_data, float* output_data,
+                                                const size_t* input_shape, size_t input_ndim,
+                                                const size_t* input_strides)
+{
+    size_t total_elements = calculate_total_elements(input_shape, input_ndim);
+    if (total_elements == 0)
+    {
+        output_data[0] = 0.0f;
+        return;
+    }
+
+    float sum = 0.0f;
+    for (size_t i = 0; i < total_elements; ++i)
+    {
+        size_t physical_idx = get_physical_index(i, input_shape, input_ndim, input_strides);
+        sum += input_data[physical_idx];
+    }
+    output_data[0] = sum;
+}
+
 // --- Full Reduction Kernels (int32) ---
 
 void plast_cpu_sum_full_reduction_int32(const int32_t* input_data, int32_t* output_data,
@@ -63,6 +98,26 @@ void plast_cpu_sum_full_reduction_int32(const int32_t* input_data, int32_t* outp
     for (size_t i = 0; i < total_elements; ++i)
     {
         sum += input_data[i];
+    }
+    output_data[0] = sum;
+}
+
+void plast_cpu_sum_full_reduction_strided_int32(const int32_t* input_data, int32_t* output_data,
+                                                const size_t* input_shape, size_t input_ndim,
+                                                const size_t* input_strides)
+{
+    size_t total_elements = calculate_total_elements(input_shape, input_ndim);
+    if (total_elements == 0)
+    {
+        output_data[0] = 0;
+        return;
+    }
+
+    int32_t sum = 0;
+    for (size_t i = 0; i < total_elements; ++i)
+    {
+        size_t physical_idx = get_physical_index(i, input_shape, input_ndim, input_strides);
+        sum += input_data[physical_idx];
     }
     output_data[0] = sum;
 }
@@ -116,6 +171,52 @@ void plast_cpu_sum_reduction_dim_float(const float* input_data, float* output_da
     }
 }
 
+void plast_cpu_sum_reduction_dim_strided_float(const float* input_data, float* output_data,
+                                               const size_t* input_shape, size_t input_ndim,
+                                               const size_t* input_strides,
+                                               const size_t* output_shape, size_t output_ndim,
+                                               int dim)
+{
+    size_t output_strides[output_ndim];
+    calculate_strides(output_shape, output_ndim, output_strides);
+
+    size_t reduction_size = input_shape[dim];
+
+    size_t output_total_elements = calculate_total_elements(output_shape, output_ndim);
+
+    for (size_t out_flat_idx = 0; out_flat_idx < output_total_elements; ++out_flat_idx)
+    {
+        size_t current_input_base_physical_idx = 0;
+        size_t temp_out_flat_idx = out_flat_idx;
+        size_t current_output_dim_idx = 0;
+
+        for (size_t i = 0; i < input_ndim; ++i)
+        {
+            if (i == dim)
+            {
+                // Skip the reduced dimension for base index calculation
+            }
+            else
+            {
+                size_t coord_in_this_dim =
+                    (temp_out_flat_idx / output_strides[current_output_dim_idx]) %
+                    output_shape[current_output_dim_idx];
+                current_input_base_physical_idx += coord_in_this_dim * input_strides[i];
+                current_output_dim_idx++;
+            }
+        }
+
+        float current_sum = 0.0f;
+
+        for (size_t k = 0; k < reduction_size; ++k)
+        {
+            size_t input_physical_idx = current_input_base_physical_idx + k * input_strides[dim];
+            current_sum += input_data[input_physical_idx];
+        }
+        output_data[out_flat_idx] = current_sum;
+    }
+}
+
 // --- Reduction along a dimension kernels (int32) ---
 
 void plast_cpu_sum_reduction_dim_int32(const int32_t* input_data, int32_t* output_data,
@@ -160,6 +261,52 @@ void plast_cpu_sum_reduction_dim_int32(const int32_t* input_data, int32_t* outpu
         {
             size_t input_idx = current_input_base_idx + k * input_strides[dim];
             current_sum += input_data[input_idx];
+        }
+        output_data[out_flat_idx] = current_sum;
+    }
+}
+
+void plast_cpu_sum_reduction_dim_strided_int32(const int32_t* input_data, int32_t* output_data,
+                                               const size_t* input_shape, size_t input_ndim,
+                                               const size_t* input_strides,
+                                               const size_t* output_shape, size_t output_ndim,
+                                               int dim)
+{
+    size_t output_strides[output_ndim];
+    calculate_strides(output_shape, output_ndim, output_strides);
+
+    size_t reduction_size = input_shape[dim];
+
+    size_t output_total_elements = calculate_total_elements(output_shape, output_ndim);
+
+    for (size_t out_flat_idx = 0; out_flat_idx < output_total_elements; ++out_flat_idx)
+    {
+        size_t current_input_base_physical_idx = 0;
+        size_t temp_out_flat_idx = out_flat_idx;
+        size_t current_output_dim_idx = 0;
+
+        for (size_t i = 0; i < input_ndim; ++i)
+        {
+            if (i == dim)
+            {
+                // Skip the reduced dimension for base index calculation
+            }
+            else
+            {
+                size_t coord_in_this_dim =
+                    (temp_out_flat_idx / output_strides[current_output_dim_idx]) %
+                    output_shape[current_output_dim_idx];
+                current_input_base_physical_idx += coord_in_this_dim * input_strides[i];
+                current_output_dim_idx++;
+            }
+        }
+
+        int32_t current_sum = 0;
+
+        for (size_t k = 0; k < reduction_size; ++k)
+        {
+            size_t input_physical_idx = current_input_base_physical_idx + k * input_strides[dim];
+            current_sum += input_data[input_physical_idx];
         }
         output_data[out_flat_idx] = current_sum;
     }

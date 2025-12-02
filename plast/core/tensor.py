@@ -393,7 +393,7 @@ if __name__ == "__main__":
     b_cpu = Tensor(data=[[[5.0, 6.0], [7.0, 8.0]], [[5.0, 6.0], [7.0, 8.0]]], dtype=np.float32, device="cpu")
 
     # Perform an operation on CPU
-    c_cpu = a_cpu + b_cpu
+    c_cpu = a_cpu.broadcast_to(*b_cpu.shape).min(dim=2)
 
     # Access data (triggers execution)
     print("Result of a_cpu + b_cpu:")
