@@ -50,7 +50,6 @@ class MatmulOperation : public BaseOperation
         std::vector<size_t> effective_lhs_shape = lhs_shape;
         std::vector<size_t> effective_rhs_shape = rhs_shape;
 
-<<<<<<< HEAD
         if (lhs_ndim == 1)
         {
             effective_lhs_shape.insert(effective_lhs_shape.begin(), 1); // (D) -> (1, D)
@@ -58,20 +57,12 @@ class MatmulOperation : public BaseOperation
         }
         if (rhs_ndim == 1)
         {
-=======
-        if (lhs_ndim == 1) {
-            effective_lhs_shape.insert(effective_lhs_shape.begin(), 1); // (D) -> (1, D)
-            lhs_ndim++;
-        }
-        if (rhs_ndim == 1) {
->>>>>>> origin/main
             effective_rhs_shape.push_back(1); // (D) -> (D, 1)
             rhs_ndim++;
         }
 
         if (lhs_ndim < 2 || rhs_ndim < 2)
         {
-<<<<<<< HEAD
             throw std::runtime_error("Matmul operation requires inputs with at least 2 dimensions "
                                      "after handling 1D tensors.");
         }
@@ -85,17 +76,6 @@ class MatmulOperation : public BaseOperation
         // Broadcast batch dimensions
         std::vector<size_t> output_batch_shape =
             core::broadcast_shapes(lhs_batch_shape, rhs_batch_shape);
-=======
-            throw std::runtime_error("Matmul operation requires inputs with at least 2 dimensions after handling 1D tensors.");
-        }
-
-        // Extract batch dimensions
-        std::vector<size_t> lhs_batch_shape(effective_lhs_shape.begin(), effective_lhs_shape.end() - 2);
-        std::vector<size_t> rhs_batch_shape(effective_rhs_shape.begin(), effective_rhs_shape.end() - 2);
-
-        // Broadcast batch dimensions
-        std::vector<size_t> output_batch_shape = core::broadcast_shapes(lhs_batch_shape, rhs_batch_shape);
->>>>>>> origin/main
 
         // Extract N, K, M
         size_t N = effective_lhs_shape[lhs_ndim - 2];
@@ -114,7 +94,6 @@ class MatmulOperation : public BaseOperation
         output_shape.push_back(M);
 
         // If original inputs were 1D, adjust output shape back
-<<<<<<< HEAD
         if (lhs_shape.size() == 1 && rhs_shape.size() == 1)
         {
             // Vector-vector dot product results in scalar
@@ -127,15 +106,6 @@ class MatmulOperation : public BaseOperation
         }
         else if (rhs_shape.size() == 1)
         {
-=======
-        if (lhs_shape.size() == 1 && rhs_shape.size() == 1) {
-            // Vector-vector dot product results in scalar
-            return {}; // Empty vector for scalar
-        } else if (lhs_shape.size() == 1) {
-            // Vector-matrix product, output is (M)
-            output_shape.erase(output_shape.begin()); // Remove the prepended 1
-        } else if (rhs_shape.size() == 1) {
->>>>>>> origin/main
             // Matrix-vector product, output is (N)
             output_shape.pop_back(); // Remove the appended 1
         }

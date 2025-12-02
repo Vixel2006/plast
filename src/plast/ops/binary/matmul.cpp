@@ -87,12 +87,6 @@ tensor::Tensor MatmulOperation::execute_cpu(const std::vector<const tensor::Tens
         throw std::runtime_error("Unsupoorted DType for Matmul operation on CPU.");
     }
 
-    delete[] output_shape;
-    delete[] lhs_strides;
-    delete[] rhs_strides;
-    delete[] lhs_original_shape;
-    delete[] rhs_original_shape;
-
     return output;
 }
 

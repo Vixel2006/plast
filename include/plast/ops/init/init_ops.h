@@ -11,7 +11,6 @@ namespace ops
 namespace init
 {
 
-<<<<<<< HEAD
 std::shared_ptr<plast::tensor::Tensor>
 zeros(const std::vector<size_t>& shape, plast::core::DType dtype, plast::core::DeviceType device);
 std::shared_ptr<plast::tensor::Tensor>
@@ -26,18 +25,6 @@ std::shared_ptr<plast::tensor::Tensor> uniform(const std::vector<size_t>& shape,
 std::shared_ptr<plast::tensor::Tensor> from_data(void* data, const std::vector<size_t>& shape,
                                                  plast::core::DType dtype,
                                                  plast::core::DeviceType device);
-=======
-std::shared_ptr<plast::tensor::Tensor> zeros(const std::vector<size_t>& shape, plast::core::DType dtype,
-                            plast::core::DeviceType device);
-std::shared_ptr<plast::tensor::Tensor> ones(const std::vector<size_t>& shape, plast::core::DType dtype,
-                           plast::core::DeviceType device);
-std::shared_ptr<plast::tensor::Tensor> randn(const std::vector<size_t>& shape, plast::core::DType dtype,
-                            plast::core::DeviceType device, int seed);
-std::shared_ptr<plast::tensor::Tensor> uniform(const std::vector<size_t>& shape, plast::core::DType dtype,
-                              plast::core::DeviceType device, float low, float high);
-std::shared_ptr<plast::tensor::Tensor> from_data(void* data, const std::vector<size_t>& shape,
-                                plast::core::DType dtype, plast::core::DeviceType device);
->>>>>>> origin/main
 
 } // namespace init
 } // namespace ops
