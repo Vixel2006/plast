@@ -406,3 +406,6 @@ if __name__ == "__main__":
     print(c_cpu.data)
     print(f"Shape: {c_cpu.shape}, DType: {c_cpu.dtype}, Device: {c_cpu.device}")
     
+    a_cuda = Tensor(data=[[1,2], [3,4]], dtype=np.float32, device="cuda")
+    print(a_cuda.broadcast_to(2,2,2))
+    print(a_cuda.broadcast_to(2,2,2).data)

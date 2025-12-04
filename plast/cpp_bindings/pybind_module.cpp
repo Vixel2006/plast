@@ -90,21 +90,14 @@ PYBIND11_MODULE(_plast_cpp_core, m)
              [](plast::tensor::Tensor& t) -> py::array
              {
                  // If the tensor is on CUDA, transfer it to CPU first
-                 std::shared_ptr<plast::tensor::Tensor> cpu_tensor_ptr;
-                 if (t.device() == plast::core::DeviceType::CUDA)
-                 {
-                     cpu_tensor_ptr = std::make_shared<plast::tensor::Tensor>(
-                         t.to(plast::core::DeviceType::CPU));
-                 }
-                 else
-                 {
-                     cpu_tensor_ptr = std::make_shared<plast::tensor::Tensor>(t.clone());
-                 }
+                 plast::tensor::Tensor cpu_tensor = (t.device() == plast::core::DeviceType::CUDA)
+                                                        ? t.to(plast::core::DeviceType::CPU)
+                                                        : t.clone();
 
                  // Determine numpy dtype based on plast::core::DType
                  py::dtype numpy_dtype;
                  size_t itemsize;
-                 switch (cpu_tensor_ptr->dtype())
+                 switch (cpu_tensor.dtype())
                  {
                  case plast::core::DType::FLOAT32:
                      numpy_dtype = py::dtype::of<float>();
@@ -155,14 +148,14 @@ PYBIND11_MODULE(_plast_cpp_core, m)
                  }
 
                  // Calculate strides
-                 std::vector<py::ssize_t> strides_bytes(cpu_tensor_ptr->strides().size());
-                 for (size_t i = 0; i < cpu_tensor_ptr->strides().size(); ++i)
+                 std::vector<py::ssize_t> strides_bytes(cpu_tensor.strides().size());
+                 for (size_t i = 0; i < cpu_tensor.strides().size(); ++i)
                  {
-                     strides_bytes[i] = cpu_tensor_ptr->strides()[i] * itemsize;
+                     strides_bytes[i] = cpu_tensor.strides()[i] * itemsize;
                  }
 
-                 return py::array(numpy_dtype, cpu_tensor_ptr->shape(), strides_bytes,
-                                  cpu_tensor_ptr->data());
+                 return py::array(numpy_dtype, cpu_tensor.shape(), strides_bytes,
+                                  cpu_tensor.data());
              })
         .def("__repr__",
              [](const plast::tensor::Tensor& t)

@@ -1,7 +1,6 @@
 #include "plast/tensor/tensor.h"
 #include "plast/core/data_buffer.h"
 #include "plast/core/types.h"
-#include "plast/kernels/cuda/strided_copy_kernels.h" // Include new strided copy kernel
 #include <iostream>
 
 #include <cstring>
@@ -90,6 +89,18 @@ Tensor::Tensor(const std::vector<size_t>& shape, core::DType dtype, core::Device
         shape_.push_back(1); // Scalar tensor
     }
     strides_ = calculate_contiguous_strides(shape_);
+    size_t bytes = num_elements() * get_dtype_size(dtype_);
+    buffer_ = std::make_shared<core::DataBuffer>(bytes, device);
+}
+
+Tensor::Tensor(const std::vector<size_t>& shape, const std::vector<size_t>& strides,
+               core::DType dtype, core::DeviceType device)
+    : shape_(shape), strides_(strides), dtype_(dtype)
+{
+    if (shape.empty())
+    {
+        shape_.push_back(1);
+    }
     size_t bytes = num_elements() * get_dtype_size(dtype_);
     buffer_ = std::make_shared<core::DataBuffer>(bytes, device);
 }
@@ -188,7 +199,7 @@ Tensor Tensor::to(core::DeviceType target_device) const
     }
 
     // Create a new tensor on the target device
-    Tensor new_tensor(shape_, dtype_, target_device);
+    Tensor new_tensor(shape_, strides_, dtype_, target_device);
 
     // Copy data from current buffer to new buffer
     size_t bytes = nbytes();
@@ -205,60 +216,8 @@ Tensor Tensor::to(core::DeviceType target_device) const
         else if (device() == core::DeviceType::CUDA && target_device == core::DeviceType::CPU)
         {
 #ifdef PLAST_CUDA_ENABLED
-            if (is_contiguous())
-            {
-                PLAST_CUDA_CHECK(
-                    cudaMemcpy(new_tensor.data(), data(), bytes, cudaMemcpyDeviceToHost));
-            }
-            else
-            {
-#ifdef PLAST_CUDA_ENABLED
-                std::cout << "DEBUG: Non-contiguous CUDA to CPU transfer." << std::endl;
-                std::cout << "DEBUG: Source Tensor - Shape: [";
-                for (size_t s : shape_) std::cout << s << " ";
-                std::cout << "], Strides: [";
-                for (size_t s : strides_) std::cout << s << " ";
-                std::cout << "]" << std::endl;
-
-                // Create a temporary contiguous CUDA tensor
-                Tensor temp_contiguous_cuda_tensor(shape_, dtype_, core::DeviceType::CUDA);
-
-                std::cout << "DEBUG: Temp Contiguous CUDA Tensor - Shape: [";
-                for (size_t s : temp_contiguous_cuda_tensor.shape()) std::cout << s << " ";
-                std::cout << "], Strides: [";
-                for (size_t s : temp_contiguous_cuda_tensor.strides()) std::cout << s << " ";
-                std::cout << "]" << std::endl;
-
-                // Use strided copy kernel to copy from source non-contiguous CUDA to temporary contiguous CUDA
-                switch (dtype_)
-                {
-                case core::DType::FLOAT32:
-                    plast_cuda_strided_copy_float(
-                        static_cast<const float*>(data()), shape_.data(), strides_.data(),
-                        shape_.size(), static_cast<float*>(temp_contiguous_cuda_tensor.data()),
-                        temp_contiguous_cuda_tensor.shape().data(),
-                        temp_contiguous_cuda_tensor.shape().size());
-                    break;
-                case core::DType::INT32:
-                    plast_cuda_strided_copy_int32(
-                        static_cast<const int32_t*>(data()), shape_.data(), strides_.data(),
-                        shape_.size(), static_cast<int32_t*>(temp_contiguous_cuda_tensor.data()),
-                        temp_contiguous_cuda_tensor.shape().data(),
-                        temp_contiguous_cuda_tensor.shape().size());
-                    break;
-                // Add more types as needed
-                default:
-                    throw std::runtime_error(
-                        "Unsupported DType for strided CUDA to CPU transfer.");
-                }
-
-                // Now copy the temporary contiguous CUDA tensor to the CPU tensor
-                PLAST_CUDA_CHECK(cudaMemcpy(new_tensor.data(), temp_contiguous_cuda_tensor.data(),
-                                            bytes, cudaMemcpyDeviceToHost));
-#else
-                throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA memcpy.");
-#endif
-            }
+            PLAST_CUDA_CHECK(
+                cudaMemcpy(new_tensor.data(), data(), bytes, cudaMemcpyDeviceToHost));
 #else
             throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA memcpy.");
 #endif
@@ -335,30 +294,8 @@ Tensor Tensor::clone() const
         }
         else if (device() == core::DeviceType::CUDA)
         {
-#ifdef PLAST_CUDA_ENABLED
-            // Use the new CUDA strided copy kernel
-            switch (dtype_)
-            {
-            case core::DType::FLOAT32:
-                plast_cuda_strided_copy_float(
-                    static_cast<const float*>(data()), shape_.data(), strides_.data(),
-                    shape_.size(), static_cast<float*>(new_tensor.data()), new_tensor.shape().data(),
-                    new_tensor.shape().size());
-                break;
-            case core::DType::INT32:
-                plast_cuda_strided_copy_int32(
-                    static_cast<const int32_t*>(data()), shape_.data(), strides_.data(),
-                    shape_.size(), static_cast<int32_t*>(new_tensor.data()), new_tensor.shape().data(),
-                    new_tensor.shape().size());
-                break;
-            // Add more types as needed
-            default:
-                throw std::runtime_error(
-                    "Unsupported DType for strided CUDA clone operation.");
-            }
-#else
-            throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA strided copy.");
-#endif
+            throw std::runtime_error(
+                "Non-contiguous CUDA clone is not supported without strided copy kernels.");
         }
     }
     return new_tensor;

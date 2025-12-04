@@ -22,6 +22,8 @@ class Tensor
   public:
     // Constructor for creating a new tensor with allocated memory (contiguous strides)
     Tensor(const std::vector<size_t>& shape, core::DType dtype, core::DeviceType device);
+    Tensor(const std::vector<size_t>& shape, const std::vector<size_t>& strides, core::DType dtype,
+           core::DeviceType device);
 
     // Constructor for creating a view (shares DataBuffer)
     Tensor(std::shared_ptr<core::DataBuffer> buffer, const std::vector<size_t>& shape,

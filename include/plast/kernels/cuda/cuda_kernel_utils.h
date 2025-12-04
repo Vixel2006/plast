@@ -15,6 +15,12 @@ extern "C"
     __device__ void cuda_increment_indices(size_t* current_indices, const size_t* shape,
                                            size_t ndim);
 
+    void plast_cuda_strided_copy_generic(const void* input_data, const size_t* input_shape,
+                                         const size_t* input_strides, size_t input_ndim,
+                                         void* output_data, const size_t* output_shape,
+                                         const size_t* output_strides, size_t output_ndim,
+                                         size_t item_size);
+
 #ifdef __cplusplus
 }
 #endif
