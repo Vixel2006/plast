@@ -43,8 +43,13 @@ def sub(lhs: Tensor, rhs: Tensor | float) -> Tensor:
             f"Unsupported operand type(s) for -: 'Tensor' and '{type(rhs)}'"
         )
 
+def matmul(lhs: Tensor, rhs: Tensor) -> Tensor:
+    new_cpp_node = _plast_cpp_core.matmul_op_node(lhs._cpp_node, rhs._cpp_node)
+    return Tensor(cpp_node=new_cpp_node)
+
 
 __all__ = [
     "add",
     "sub",
+    "matmul",
 ]

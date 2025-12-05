@@ -158,10 +158,14 @@ void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1, con
     for (size_t i = 0; i < total_elements; ++i)
     {
         int32_t sum = 0;
+        // current_indices now represents the (batch, N, M) indices for the output
+        // We need to iterate K times for the dot product
 
+        // Calculate the row and col for the current output element
         size_t out_row = current_indices[out_ndim - 2];
         size_t out_col = current_indices[out_ndim - 1];
 
+        // Calculate the base indices for in1 and in2, excluding the last two dimensions
         size_t in1_base_idx = 0;
         size_t in2_base_idx = 0;
         for (size_t d = 0; d < out_ndim - 2; ++d)
@@ -172,8 +176,10 @@ void plast_cpu_matmul_kernel_strided_int32(int32_t* out, const int32_t* in1, con
 
         for (size_t k = 0; k < K_dim; ++k)
         {
+            // Calculate the full index for in1 (..., N, k)
             size_t in1_idx =
                 in1_base_idx + out_row * in1_strides[out_ndim - 2] + k * in1_strides[out_ndim - 1];
+            // Calculate the full index for in2 (..., k, M)
             size_t in2_idx =
                 in2_base_idx + k * in2_strides[out_ndim - 2] + out_col * in2_strides[out_ndim - 1];
 

@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import time
 
 from plast.core.tensor import Tensor
 from plast.core.device import Device
@@ -213,10 +214,33 @@ class TestTensorBinaryOperations:
     def test_matmul_tensor_tensor(self):
         a_data = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
         b_data = np.array([[5.0, 6.0], [7.0, 8.0]], dtype=np.float32)
-        a_t = Tensor(data=a_data)
-        b_t = Tensor(data=b_data)
-        result = a_t @ b_t
-        assert_tensor_equal(result, a_data @ b_data)
+
+        # CPU Matmul
+        cpu_a = Tensor(data=a_data, device="cpu")
+        cpu_b = Tensor(data=b_data, device="cpu")
+
+        start_cpu = time.perf_counter()
+        cpu_result = cpu_a @ cpu_b
+        end_cpu = time.perf_counter()
+        cpu_time = end_cpu - start_cpu
+        print(f"\nCPU Matmul (small test): {cpu_time:.6f} seconds")
+        assert_tensor_equal(cpu_result, a_data @ b_data)
+
+        # CUDA Matmul
+        if Device.is_cuda_available():
+            cuda_a = Tensor(data=a_data, device="cuda")
+            cuda_b = Tensor(data=b_data, device="cuda")
+
+            start_cuda = time.perf_counter()
+            cuda_result = cuda_a @ cuda_b
+            end_cuda = time.perf_counter()
+            cuda_time = end_cuda - start_cuda
+            print(f"CUDA Matmul (small test): {cuda_time:.6f} seconds")
+
+            # Verify results are close
+            assert_tensor_equal(cpu_result, cuda_result.data)
+        else:
+            print("CUDA not available, skipping CUDA matmul for small test")
 
     def test_add_broadcast(self):
         a_data = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
@@ -402,3 +426,40 @@ class TestTensorUtilityMethods:
 
     def test_numel_large_tensor(self, large_tensor, large_tensor_data):
         assert large_tensor.numel() == large_tensor_data.size
+
+
+import time
+
+class TestTensorBenchmarking:
+    @pytest.mark.parametrize("size", [128, 256, 512])
+    def test_matmul_performance(self, size):
+        # Generate random matrices
+        a_data = np.random.rand(size, size).astype(np.float32)
+        b_data = np.random.rand(size, size).astype(np.float32)
+
+        # CPU Matmul
+        cpu_a = Tensor(data=a_data, device="cpu")
+        cpu_b = Tensor(data=b_data, device="cpu")
+
+        start_cpu = time.perf_counter()
+        cpu_result = cpu_a @ cpu_b
+        end_cpu = time.perf_counter()
+        cpu_time = end_cpu - start_cpu
+        print(f"\nCPU Matmul ({size}x{size}): {cpu_time:.6f} seconds")
+
+        # CUDA Matmul
+        if Device.is_cuda_available():
+            cuda_a = Tensor(data=a_data, device="cuda")
+            cuda_b = Tensor(data=b_data, device="cuda")
+
+            start_cuda = time.perf_counter()
+            cuda_result = cuda_a @ cuda_b
+            end_cuda = time.perf_counter()
+            cuda_time = end_cuda - start_cuda
+            print(f"CUDA Matmul ({size}x{size}): {cuda_time:.6f} seconds")
+
+            # Optional: Verify results are close
+            assert_tensor_equal(cpu_result, cuda_result.data)
+            assert cuda_time < cpu_time # Expect CUDA to be faster
+        else:
+            print(f"CUDA not available, skipping CUDA matmul benchmark for size {size}")

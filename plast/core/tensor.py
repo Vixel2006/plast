@@ -392,20 +392,3 @@ class Tensor:
         # C++ shared_ptr handles memory, so no explicit free needed here.
         pass
 
-
-# Example usage (for testing the Python side)
-if __name__ == "__main__":
-    # Create some tensors on CPU
-    a_cpu = Tensor(data=[[1.0, 2.0], [3.0, 4.0]], dtype=np.float32, device="cpu")
-    b_cpu = Tensor(data=[[5.0, 6.0], [7.0, 8.0]], dtype=np.float32, device="cpu")
-
-    c_cpu = a_cpu + b_cpu
-
-    # Access data (triggers execution)
-    print("Result of a_cpu + b_cpu:")
-    print(c_cpu.data)
-    print(f"Shape: {c_cpu.shape}, DType: {c_cpu.dtype}, Device: {c_cpu.device}")
-    
-    a_cuda = Tensor(data=[[1,2], [3,4]], dtype=np.float32, device="cuda")
-    print(a_cuda.broadcast_to(2,2,2))
-    print(a_cuda.broadcast_to(2,2,2).data)
