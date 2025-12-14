@@ -28,36 +28,10 @@ tensor::Tensor MulOperation::execute_cpu(const std::vector<const tensor::Tensor*
     // 1. Determine output shape and strides based on broadcasting rules
     std::vector<size_t> output_shape_vec = core::broadcast_shapes(lhs.shape(), rhs.shape());
 
-    // Convert output_shape_vec to size_t*
-    size_t* output_shape = new size_t[output_shape_vec.size()];
-    for (size_t i = 0; i < output_shape_vec.size(); ++i)
-    {
-        output_shape[i] = output_shape_vec[i];
-    }
-    size_t output_ndim = output_shape_vec.size();
-
     // Allocate output tensor
     tensor::Tensor output(output_shape_vec, dtype, core::DeviceType::CPU);
 
-    // 2. Compute strides for lhs and rhs based on the broadcasted output shape
-    std::vector<size_t> lhs_strides_vec =
-        core::get_effective_broadcast_strides(lhs.shape(), lhs.strides(), output_shape_vec);
-    std::vector<size_t> rhs_strides_vec =
-        core::get_effective_broadcast_strides(rhs.shape(), rhs.strides(), output_shape_vec);
-
-    size_t* lhs_strides = new size_t[lhs_strides_vec.size()];
-    for (size_t i = 0; i < lhs_strides_vec.size(); ++i)
-    {
-        lhs_strides[i] = lhs_strides_vec[i];
-    }
-
-    size_t* rhs_strides = new size_t[rhs_strides_vec.size()];
-    for (size_t i = 0; i < rhs_strides_vec.size(); ++i)
-    {
-        rhs_strides[i] = rhs_strides_vec[i];
-    }
-
-    // 3. Check if we can use the optimized contiguous kernels
+    // 2. Check if we can use the optimized contiguous kernels
     bool lhs_contiguous_and_matches = lhs.is_contiguous() && (lhs.shape() == output_shape_vec);
     bool rhs_contiguous_and_matches = rhs.is_contiguous() && (rhs.shape() == output_shape_vec);
 
@@ -76,38 +50,14 @@ tensor::Tensor MulOperation::execute_cpu(const std::vector<const tensor::Tensor*
                                        rhs.data_as<const int32_t>(), num_elements);
             break;
         default:
-            delete[] output_shape;
-            delete[] lhs_strides;
-            delete[] rhs_strides;
             throw std::runtime_error("Unsupported DType for Mul operation on CPU.");
         }
     }
     else
     {
-        // Use strided kernels for non-contiguous or broadcasted inputs
-        switch (dtype)
-        {
-        case core::DType::FLOAT32:
-            plast_cpu_mul_kernel_strided_float(output.data_as<float>(), lhs.data_as<const float>(),
-                                               rhs.data_as<const float>(), output_shape,
-                                               output_ndim, lhs_strides, rhs_strides);
-            break;
-        case core::DType::INT32:
-            plast_cpu_mul_kernel_strided_int32(
-                output.data_as<int32_t>(), lhs.data_as<const int32_t>(),
-                rhs.data_as<const int32_t>(), output_shape, output_ndim, lhs_strides, rhs_strides);
-            break;
-        default:
-            delete[] output_shape;
-            delete[] lhs_strides;
-            delete[] rhs_strides;
-            throw std::runtime_error("Unsupported DType for Mul operation on CPU.");
-        }
+        throw std::runtime_error(
+            "Mul operation on CPU does not yet support non-contiguous or broadcasted inputs.");
     }
-
-    delete[] output_shape;
-    delete[] lhs_strides;
-    delete[] rhs_strides;
 
     return output;
 }
