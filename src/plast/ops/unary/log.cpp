@@ -63,6 +63,7 @@ tensor::Tensor LogOperation::execute_cuda(const std::vector<const tensor::Tensor
     {
         throw std::runtime_error("Input tensor must be on CUDA for CUDA execution.");
     }
+    size_t num_elements = input.num_elements();
     core::DType dtype = input.dtype();
 
     // Allocate output tensor on CUDA device
@@ -80,9 +81,8 @@ tensor::Tensor LogOperation::execute_cuda(const std::vector<const tensor::Tensor
     switch (dtype)
     {
     case core::DType::FLOAT32:
-        // plast_cuda_log_kernel_float(output.data_as<float>(), input.data_as<const float>(),
-        //                          num_elements);
-        throw std::runtime_error("CUDA Log float operation not yet implemented.");
+        plast_cuda_log_kernel_float(output.data_as<float>(), input.data_as<const float>(),
+                                    num_elements);
         break;
     case core::DType::INT32:
         // plast_cuda_log_kernel_int32(output.data_as<int32_t>(), input.data_as<const int32_t>(),

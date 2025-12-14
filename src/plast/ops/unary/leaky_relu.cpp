@@ -76,8 +76,8 @@ LeakyReluOperation::execute_cuda(const std::vector<const tensor::Tensor*>& input
     switch (dtype)
     {
     case core::DType::FLOAT32:
-        // plast_cuda_leaky_relu_kernel_float(output.data_as<float>(), input.data_as<const float>(),
-        //                                  num_elements, alpha_);
+        plast_cuda_leaky_relu_kernel_float(output.data_as<float>(), input.data_as<const float>(),
+                                           num_elements, alpha_);
         break;
     case core::DType::INT32:
         // plast_cuda_leaky_relu_kernel_int32(output.data_as<int32_t>(), input.data_as<const

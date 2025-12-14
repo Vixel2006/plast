@@ -398,10 +398,10 @@ class Tensor:
         pass
 
 if __name__ == "__main__":
-    a = Tensor(data=[[[1, 2], [3, 4]], [[-5, 6], [7, -8]]], dtype=np.float32, device="cuda")
-    b = Tensor(data=[[1,2], [3,4]], dtype=np.float32, device="cuda")
+    a = Tensor(data=[[[1, 2], [3, 4]], [[5, 6], [7, 8]]], dtype=np.float32, device="cuda")
+    b = Tensor(data=[[1,2], [-3,4]], dtype=np.float32, device="cuda")
 
-    c = a + b
+    c = 2 - a
 
     print(c.data)
 
