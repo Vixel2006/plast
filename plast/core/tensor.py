@@ -127,6 +127,11 @@ class Tensor:
         Triggers computation of the graph up to this node and returns the data as a numpy array.
         """
         cpp_tensor = _execution_engine.execute(self._cpp_node)
+        
+        # Ensure the tensor is contiguous before getting data as numpy
+        if not cpp_tensor.is_contiguous():
+            cpp_tensor = cpp_tensor.clone()
+        
         np_data = cpp_tensor._get_data_as_numpy()
 
         # If the C++ tensor's shape is [1] (scalar) but numpy returns (1,), reshape to ()
@@ -393,8 +398,10 @@ class Tensor:
         pass
 
 if __name__ == "__main__":
-    a = Tensor(data=[[1, 2], [3, 4], [-5, 6], [7, -8]], dtype=np.float32, device="cuda")
+    a = Tensor(data=[[[1, 2], [3, 4]], [[-5, 6], [7, -8]]], dtype=np.float32, device="cuda")
+    b = Tensor(data=[[1,2], [3,4]], dtype=np.float32, device="cuda")
 
-    b = a.max()
-    print(b.data)
+    c = a + b
+
+    print(c.data)
 

@@ -198,42 +198,50 @@ Tensor Tensor::to(core::DeviceType target_device) const
         return clone(); // Already on target device, return a copy
     }
 
-    // Create a new tensor on the target device
-    Tensor new_tensor(shape_, strides_, dtype_, target_device);
+    const Tensor* source_tensor_ptr = this; // Assume *this is the source initially
+    std::unique_ptr<Tensor> owned_cloned_tensor; // Use unique_ptr for optional ownership
 
-    // Copy data from current buffer to new buffer
-    size_t bytes = nbytes();
+    if (!is_contiguous()) {
+        owned_cloned_tensor = std::make_unique<Tensor>(clone()); // Clone if not contiguous
+        source_tensor_ptr = owned_cloned_tensor.get(); // Point to the cloned tensor
+    }
+
+    // Create a new tensor on the target device
+    Tensor new_tensor(source_tensor_ptr->shape_, source_tensor_ptr->dtype_, target_device);
+
+    // Copy data from source_tensor's buffer to new_tensor's buffer
+    size_t bytes = source_tensor_ptr->nbytes();
     if (bytes > 0)
     {
-        if (device() == core::DeviceType::CPU && target_device == core::DeviceType::CUDA)
+        if (source_tensor_ptr->device() == core::DeviceType::CPU && target_device == core::DeviceType::CUDA)
         {
 #ifdef PLAST_CUDA_ENABLED
-            PLAST_CUDA_CHECK(cudaMemcpy(new_tensor.data(), data(), bytes, cudaMemcpyHostToDevice));
+            PLAST_CUDA_CHECK(cudaMemcpy(new_tensor.data(), source_tensor_ptr->data(), bytes, cudaMemcpyHostToDevice));
 #else
             throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA memcpy.");
 #endif
         }
-        else if (device() == core::DeviceType::CUDA && target_device == core::DeviceType::CPU)
-        {
-#ifdef PLAST_CUDA_ENABLED
-            PLAST_CUDA_CHECK(
-                cudaMemcpy(new_tensor.data(), data(), bytes, cudaMemcpyDeviceToHost));
-#else
-            throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA memcpy.");
-#endif
-        }
-        else if (device() == core::DeviceType::CUDA && target_device == core::DeviceType::CUDA)
+        else if (source_tensor_ptr->device() == core::DeviceType::CUDA && target_device == core::DeviceType::CPU)
         {
 #ifdef PLAST_CUDA_ENABLED
             PLAST_CUDA_CHECK(
-                cudaMemcpy(new_tensor.data(), data(), bytes, cudaMemcpyDeviceToDevice));
+                cudaMemcpy(new_tensor.data(), source_tensor_ptr->data(), bytes, cudaMemcpyDeviceToHost));
 #else
             throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA memcpy.");
 #endif
         }
-        else if (device() == core::DeviceType::CPU && target_device == core::DeviceType::CPU)
+        else if (source_tensor_ptr->device() == core::DeviceType::CUDA && target_device == core::DeviceType::CUDA)
         {
-            std::memcpy(new_tensor.data(), data(), bytes);
+#ifdef PLAST_CUDA_ENABLED
+            PLAST_CUDA_CHECK(
+                cudaMemcpy(new_tensor.data(), source_tensor_ptr->data(), bytes, cudaMemcpyDeviceToDevice));
+#else
+            throw std::runtime_error("CUDA is not enabled. Cannot perform CUDA memcpy.");
+#endif
+        }
+        else if (source_tensor_ptr->device() == core::DeviceType::CPU && target_device == core::DeviceType::CPU)
+        {
+            std::memcpy(new_tensor.data(), source_tensor_ptr->data(), bytes);
         }
         else
         {

@@ -38,6 +38,7 @@ class CMakeBuild(build_ext):
             "-DSLEEF_TEST=OFF",
             "-DSLEEF_SMP=OFF",
             "-DSLEEF_OPENMP=OFF",
+            f"-DCMAKE_INSTALL_PREFIX={sleef_build_dir}", # Add install prefix for SLEEF
         ]
         subprocess.check_call(["cmake", sleef_source_dir, *sleef_cmake_args], cwd=sleef_build_dir)
         subprocess.check_call(["cmake", "--build", ".", "--config", "Release"], cwd=sleef_build_dir)

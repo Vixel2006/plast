@@ -75,6 +75,7 @@ PYBIND11_MODULE(_plast_cpp_core, m)
         .def_property_readonly("device", &plast::tensor::Tensor::device)
         .def("to", &plast::tensor::Tensor::to, py::arg("target_device"))
         .def("clone", &plast::tensor::Tensor::clone)
+        .def("is_contiguous", &plast::tensor::Tensor::is_contiguous)
         .def("reshape",
              py::overload_cast<const std::vector<size_t>&>(&plast::tensor::Tensor::reshape,
                                                            py::const_),

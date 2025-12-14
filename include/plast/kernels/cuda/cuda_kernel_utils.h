@@ -1,8 +1,25 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdio.h> // For fprintf, stderr
+#include <cuda_runtime.h> // For cudaError_t, cudaGetErrorString
 
 #define MAX_NDIM 8 // Maximum number of dimensions for tensors
+
+// Macro for CUDA error checking
+#define PLAST_CUDA_CHECK(ans)                                                                      \
+    {                                                                                              \
+        plast_cuda_assert((ans), __FILE__, __LINE__);                                              \
+    }
+inline void plast_cuda_assert(cudaError_t code, const char* file, int line, bool abort = true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr, "PLAST_CUDA_CHECK: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort)
+            exit(code);
+    }
+}
 
 #ifdef __cplusplus
 extern "C"

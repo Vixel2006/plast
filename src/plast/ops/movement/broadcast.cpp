@@ -1,8 +1,20 @@
 #include "plast/ops/movement/broadcast.h"
+#include "plast/kernels/cpu/broadcast_kernels.h" // New include
+#include "plast/kernels/cuda/broadcast_kernels.h" // New include
+#include "plast/tensor/tensor.h"                 // For get_dtype_size
 
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
+
+// Forward declaration for get_dtype_size (defined in tensor.cpp)
+namespace plast
+{
+namespace tensor
+{
+size_t get_dtype_size(core::DType dtype);
+}
+} // namespace plast
 
 namespace plast
 {
@@ -19,49 +31,28 @@ BroadcastOperation::execute_cpu(const std::vector<const tensor::Tensor*>& inputs
 
     const tensor::Tensor* input_tensor = inputs[0];
     const std::vector<size_t>& input_shape = input_tensor->shape();
-    const std::vector<size_t>& input_strides = input_tensor->strides();
 
     // Use the infer_output_shape logic to get the actual output shape and validate broadcastability
     std::vector<size_t> output_shape = infer_output_shape({input_shape});
 
-    std::vector<size_t> output_strides(output_shape.size());
+    // Create a new contiguous output tensor
+    tensor::Tensor output_tensor(output_shape, input_tensor->dtype(), input_tensor->device());
 
-    size_t input_dims = input_shape.size();
-    size_t output_dims = output_shape.size();
+    // Get raw pointers and sizes for the kernel
+    const void* input_data = input_tensor->data();
+    void* output_data = output_tensor.data();
+    size_t item_size = plast::tensor::get_dtype_size(input_tensor->dtype());
 
-    // Calculate strides for broadcasting
-    for (size_t i = 0; i < output_dims; ++i)
-    {
-        size_t input_padding_offset = output_dims - input_dims;
+    // Convert std::vector to C-style arrays for kernel
+    std::vector<size_t> input_shape_vec = input_tensor->shape();
+    std::vector<size_t> input_strides_vec = input_tensor->strides();
+    std::vector<size_t> output_shape_vec = output_tensor.shape();
 
-        if (i < input_padding_offset)
-        {
-            // This dimension was conceptually prepended to the input shape (broadcasted from 1)
-            output_strides[i] = 0;
-        }
-        else
-        {
-            // This dimension corresponds to an actual dimension in the original input tensor
-            size_t original_input_idx = i - input_padding_offset;
+    cpu_broadcast_kernel(input_data, input_shape_vec.data(), input_strides_vec.data(),
+                         input_shape_vec.size(), output_data, output_shape_vec.data(),
+                         output_shape_vec.size(), item_size);
 
-            if (input_shape[original_input_idx] == output_shape[i])
-            {
-                output_strides[i] = input_strides[original_input_idx];
-            }
-            else if (input_shape[original_input_idx] == 1)
-            {
-                output_strides[i] = 0; // Broadcast this dimension
-            }
-            else
-            {
-                // This case should ideally be caught by infer_output_shape, but as a safeguard
-                throw std::runtime_error("BroadcastOperation: Internal error during stride "
-                                         "calculation. Shapes not broadcastable.");
-            }
-        }
-    }
-
-    return input_tensor->view(output_shape, output_strides);
+    return output_tensor;
 }
 
 tensor::Tensor
@@ -74,49 +65,28 @@ BroadcastOperation::execute_cuda(const std::vector<const tensor::Tensor*>& input
 
     const tensor::Tensor* input_tensor = inputs[0];
     const std::vector<size_t>& input_shape = input_tensor->shape();
-    const std::vector<size_t>& input_strides = input_tensor->strides();
 
     // Use the infer_output_shape logic to get the actual output shape and validate broadcastability
     std::vector<size_t> output_shape = infer_output_shape({input_shape});
 
-    std::vector<size_t> output_strides(output_shape.size());
+    // Create a new contiguous output tensor
+    tensor::Tensor output_tensor(output_shape, input_tensor->dtype(), input_tensor->device());
 
-    size_t input_dims = input_shape.size();
-    size_t output_dims = output_shape.size();
+    // Get raw pointers and sizes for the kernel
+    const void* input_data = input_tensor->data();
+    void* output_data = output_tensor.data();
+    size_t item_size = plast::tensor::get_dtype_size(input_tensor->dtype());
 
-    // Calculate strides for broadcasting
-    for (size_t i = 0; i < output_dims; ++i)
-    {
-        size_t input_padding_offset = output_dims - input_dims;
+    // Convert std::vector to C-style arrays for kernel
+    std::vector<size_t> input_shape_vec = input_tensor->shape();
+    std::vector<size_t> input_strides_vec = input_tensor->strides();
+    std::vector<size_t> output_shape_vec = output_tensor.shape();
 
-        if (i < input_padding_offset)
-        {
-            // This dimension was conceptually prepended to the input shape (broadcasted from 1)
-            output_strides[i] = 0;
-        }
-        else
-        {
-            // This dimension corresponds to an actual dimension in the original input tensor
-            size_t original_input_idx = i - input_padding_offset;
+    cuda_broadcast_kernel(input_data, input_shape_vec.data(), input_strides_vec.data(),
+                          input_shape_vec.size(), output_data, output_shape_vec.data(),
+                          output_shape_vec.size(), item_size);
 
-            if (input_shape[original_input_idx] == output_shape[i])
-            {
-                output_strides[i] = input_strides[original_input_idx];
-            }
-            else if (input_shape[original_input_idx] == 1)
-            {
-                output_strides[i] = 0; // Broadcast this dimension
-            }
-            else
-            {
-                // This case should ideally be caught by infer_output_shape, but as a safeguard
-                throw std::runtime_error("BroadcastOperation: Internal error during stride "
-                                         "calculation. Shapes not broadcastable.");
-            }
-        }
-    }
-
-    return input_tensor->view(output_shape, output_strides);
+    return output_tensor;
 }
 
 } // namespace ops

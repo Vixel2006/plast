@@ -1,10 +1,15 @@
 #pragma once
 
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 
 // Define a maximum number of dimensions for tensors to allow fixed-size arrays in CUDA kernels
 #define PLAST_MAX_DIMS 8
 
+#ifdef __cplusplus
 namespace plast
 {
 namespace core
@@ -34,3 +39,4 @@ enum class DeviceType
 
 } // namespace core
 } // namespace plast
+#endif

@@ -72,6 +72,8 @@ add_library(plast_cpp_core_lib STATIC
     src/plast/kernels/cuda/mean_kernels.cu
     src/plast/kernels/cuda/max_kernels.cu
     src/plast/kernels/cuda/min_kernels.cu
+    src/plast/kernels/cuda/broadcast_kernels.cu # New CUDA broadcast kernel
+    src/plast/kernels/cuda/expand_kernels.cu    # New CUDA expand kernel
     src/plast/kernels/cpu/add_kernels.c
     src/plast/kernels/cpu/sub_kernels.c
     src/plast/kernels/cpu/mul_kernels.c
@@ -85,6 +87,8 @@ add_library(plast_cpp_core_lib STATIC
     src/plast/kernels/cpu/mean_kernels.c
     src/plast/kernels/cpu/sum_kernels.c
     src/plast/kernels/cpu/max_kernels.c
+    src/plast/kernels/cpu/broadcast_kernels.c   # New CPU broadcast kernel
+    src/plast/kernels/cpu/expand_kernels.c      # New CPU expand kernel
     src/plast/ops/init/init.cpp
 )
 
