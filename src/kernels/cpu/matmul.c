@@ -63,6 +63,54 @@ void matmul_cpu_forward_float_contig_kernel(const float *a, const float *b,
   }
 }
 
+void matmul_cpu_forward_float_nt_kernel(const float *a, const float *b,
+                                            float *c, u64 batches, u64 rows,
+                                            u64 inners, u64 cols) {
+#pragma omp parallel for collapse(2) num_threads(8)
+  for (u64 batch = 0; batch < batches; ++batch) {
+    for (u64 row_tile = 0; row_tile < rows; row_tile += TILE_SIZE) {
+      u64 row_tile_end = MIN(rows, row_tile + TILE_SIZE);
+      for (u64 col_tile = 0; col_tile < cols; col_tile += TILE_SIZE) {
+        u64 col_tile_end = MIN(cols, col_tile + TILE_SIZE);
+        for (u64 row = row_tile; row < row_tile_end; ++row) {
+          for (u64 col = col_tile; col < col_tile_end; ++col) {
+            float sum = 0.0f;
+            for (u64 inner = 0; inner < inners; ++inner) {
+              sum += a[batch * rows * inners + row * inners + inner] *
+                     b[batch * cols * inners + col * inners + inner];
+            }
+            c[batch * rows * cols + row * cols + col] += sum;
+          }
+        }
+      }
+    }
+  }
+}
+
+void matmul_cpu_forward_float_tn_kernel(const float *a, const float *b,
+                                            float *c, u64 batches, u64 rows,
+                                            u64 inners, u64 cols) {
+#pragma omp parallel for collapse(2) num_threads(8)
+  for (u64 batch = 0; batch < batches; ++batch) {
+    for (u64 row_tile = 0; row_tile < rows; row_tile += TILE_SIZE) {
+      u64 row_tile_end = MIN(rows, row_tile + TILE_SIZE);
+      for (u64 col_tile = 0; col_tile < cols; col_tile += TILE_SIZE) {
+        u64 col_tile_end = MIN(cols, col_tile + TILE_SIZE);
+        for (u64 row = row_tile; row < row_tile_end; ++row) {
+          for (u64 col = col_tile; col < col_tile_end; ++col) {
+            float sum = 0.0f;
+            for (u64 inner = 0; inner < inners; ++inner) {
+              sum += a[batch * inners * rows + inner * rows + row] *
+                     b[batch * inners * cols + inner * cols + col];
+            }
+            c[batch * rows * cols + row * cols + col] += sum;
+          }
+        }
+      }
+    }
+  }
+}
+
 void matmul_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
@@ -158,49 +206,62 @@ void matmul_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
     batches *= a->shape[i];
   }
 
-  // NOTE: da = dc @ B.T
+  void *dc_data_ptr = dc->data;
+  void *dc_packed_data = NULL;
+  u64 element_size = dtype_size(a->dtype);
+
+  if (!is_contiguous(dc)) {
+    dc_packed_data = malloc(numel(dc) * element_size);
+    if (!dc_packed_data) {
+      fprintf(stderr, "Memory allocation failed for dc_packed_data in "
+                      "matmul_cpu_backward\n");
+      return;
+    }
+    pack_tensor_to_contiguous_buffer(dc, dc_packed_data);
+    dc_data_ptr = dc_packed_data;
+  }
+
   if (a->requires_grad) {
-    u64 tmp_shape = b->shape[b->ndim - 1];
-    b->shape[b->ndim - 1] = b->shape[b->ndim - 2];
-    b->shape[b->ndim - 2] = tmp_shape;
+    void *b_data_ptr = b->data;
+    void *b_packed_data = NULL;
+    if (!is_contiguous(b)) {
+      b_packed_data = malloc(numel(b) * element_size);
+      if (!b_packed_data) {
+        fprintf(stderr, "Memory allocation failed for b_packed_data in "
+                        "matmul_cpu_backward\n");
+        free(dc_packed_data);
+        return;
+      }
+      pack_tensor_to_contiguous_buffer(b, b_packed_data);
+      b_data_ptr = b_packed_data;
+    }
 
-    u64 tmp_stride = b->strides[b->ndim - 1];
-    b->strides[b->ndim - 1] = b->strides[b->ndim - 2];
-    b->strides[b->ndim - 2] = tmp_stride;
-
-    matmul_cpu_forward_float_contig_kernel((const float *)dc->data,
-                                           (const float *)b->data,
-                                           (float *)da->data, batches, M, N, K);
-
-    tmp_shape = b->shape[b->ndim - 1];
-    b->shape[b->ndim - 1] = b->shape[b->ndim - 2];
-    b->shape[b->ndim - 2] = tmp_shape;
-
-    tmp_stride = b->strides[b->ndim - 1];
-    b->strides[b->ndim - 1] = b->strides[b->ndim - 2];
-    b->strides[b->ndim - 2] = tmp_stride;
+    matmul_cpu_forward_float_nt_kernel((const float *)dc_data_ptr,
+                                       (const float *)b_data_ptr,
+                                       (float *)da->data, batches, M, N, K);
+    free(b_packed_data);
   }
 
-  // NOTE: db = A.T @ dc
   if (b->requires_grad) {
-    u64 tmp_shape = a->shape[a->ndim - 1];
-    a->shape[a->ndim - 1] = a->shape[a->ndim - 2];
-    a->shape[a->ndim - 2] = tmp_shape;
+    void *a_data_ptr = a->data;
+    void *a_packed_data = NULL;
+    if (!is_contiguous(a)) {
+      a_packed_data = malloc(numel(a) * element_size);
+      if (!a_packed_data) {
+        fprintf(stderr, "Memory allocation failed for a_packed_data in "
+                        "matmul_cpu_backward\n");
+        free(dc_packed_data);
+        return;
+      }
+      pack_tensor_to_contiguous_buffer(a, a_packed_data);
+      a_data_ptr = a_packed_data;
+    }
 
-    u64 tmp_stride = a->strides[a->ndim - 1];
-    a->strides[a->ndim - 1] = a->strides[a->ndim - 2];
-    a->strides[b->ndim - 2] = tmp_stride;
-
-    matmul_cpu_forward_float_contig_kernel((const float *)a->data,
-                                           (const float *)dc->data,
-                                           (float *)db->data, batches, N, M, K);
-
-    tmp_shape = a->shape[a->ndim - 1];
-    a->shape[a->ndim - 1] = a->shape[a->ndim - 2];
-    a->shape[a->ndim - 2] = tmp_shape;
-
-    tmp_stride = a->strides[a->ndim - 1];
-    a->strides[a->ndim - 1] = a->strides[a->ndim - 2];
-    a->strides[a->ndim - 2] = tmp_stride;
+    matmul_cpu_forward_float_tn_kernel((const float *)a_data_ptr,
+                                       (const float *)dc_data_ptr,
+                                       (float *)db->data, batches, K, M, N);
+    free(a_packed_data);
   }
+
+  free(dc_packed_data);
 }
