@@ -47,6 +47,95 @@ __global__ void matmul_cuda_forward_contig_kernel(const float *a,
   }
 }
 
+__global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b,
+                                                float *c, u64 batches, u64 rows,
+                                                u64 inners, u64 cols) {
+  const u64 tx = threadIdx.x % BLOCKSIZE;
+  const u64 ty = threadIdx.x / BLOCKSIZE;
+
+  const u64 col = blockIdx.x * BLOCKSIZE + tx;
+  const u64 row = blockIdx.y * BLOCKSIZE + ty;
+  const u64 batch = blockIdx.z;
+
+  __shared__ float a_tiled[BLOCKSIZE][BLOCKSIZE];
+  __shared__ float b_tiled[BLOCKSIZE][BLOCKSIZE];
+
+  float accum = 0.0f;
+
+  for (u64 phase = 0; phase < inners; phase += BLOCKSIZE) {
+    if (row < rows && (phase + tx) < inners)
+      a_tiled[ty][tx] = a[batch * rows * inners + row * inners + (phase + tx)];
+    else
+      a_tiled[ty][tx] = 0.0f;
+
+    u64 B_row = blockIdx.x * BLOCKSIZE + tx;
+    u64 B_col = phase + ty;
+
+    if (B_row < cols && B_col < inners)
+      b_tiled[ty][tx] = b[batch * cols * inners + B_row * inners + B_col];
+    else
+      b_tiled[ty][tx] = 0.0f;
+
+    __syncthreads();
+
+    for (u64 k = 0; k < BLOCKSIZE; ++k) {
+      accum += a_tiled[ty][k] * b_tiled[k][tx];
+    }
+
+    __syncthreads();
+  }
+
+  if (row < rows && col < cols) {
+    c[batch * rows * cols + row * cols + col] = accum;
+  }
+}
+
+__global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b,
+                                                float *c, u64 batches, u64 rows,
+                                                u64 inners, u64 cols) {
+  const u64 tx = threadIdx.x % BLOCKSIZE;
+  const u64 ty = threadIdx.x / BLOCKSIZE;
+
+  const u64 col = blockIdx.x * BLOCKSIZE + tx;
+  const u64 row = blockIdx.y * BLOCKSIZE + ty;
+  const u64 batch = blockIdx.z;
+
+  __shared__ float a_tiled[BLOCKSIZE][BLOCKSIZE];
+  __shared__ float b_tiled[BLOCKSIZE][BLOCKSIZE];
+
+  float accum = 0.0f;
+
+  for (u64 phase = 0; phase < inners; phase += BLOCKSIZE) {
+    u64 load_a_row = phase + tx;
+    u64 load_a_col = blockIdx.y * BLOCKSIZE + ty;
+    
+    if (load_a_row < inners && load_a_col < rows)
+       a_tiled[ty][tx] = a[batch * inners * rows + load_a_row * rows + load_a_col];
+    else
+       a_tiled[ty][tx] = 0.0f;
+       
+    u64 load_b_row = phase + ty;
+    u64 load_b_col = blockIdx.x * BLOCKSIZE + tx;
+    
+    if (load_b_row < inners && load_b_col < cols)
+      b_tiled[ty][tx] = b[batch * inners * cols + load_b_row * cols + load_b_col];
+    else
+      b_tiled[ty][tx] = 0.0f;
+
+    __syncthreads();
+
+    for (u64 k = 0; k < BLOCKSIZE; ++k) {
+      accum += a_tiled[ty][k] * b_tiled[k][tx];
+    }
+
+    __syncthreads();
+  }
+
+  if (row < rows && col < cols) {
+    c[batch * rows * cols + row * cols + col] = accum;
+  }
+}
+
 __global__ void pack_tensor_cuda_kernel(const float *src_data,
                                         const u64 *src_shape,
                                         const u64 *src_strides, u64 src_ndim,
@@ -240,71 +329,71 @@ extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output,
   switch (a->dtype) {
   case FLOAT32:
     if (a->requires_grad) {
-      const Tensor *b_inputs_array[] = {b};
-      Tensor b_transposed_struct;
-      transpose_cpu_forward(b_inputs_array, &b_transposed_struct, b->ndim - 2,
-                            b->ndim - 1);
-
-      void *b_transposed_data_ptr = b_transposed_struct.data;
-      void *b_transposed_packed_data = NULL;
-
-      if (!is_contiguous(&b_transposed_struct)) {
-        pack_tensor_to_contiguous_buffer_cuda(&b_transposed_struct,
-                                              &b_transposed_packed_data);
-        if (b_transposed_packed_data == NULL) {
-          fprintf(stderr,
-                  "Failed to pack transposed B in matmul_cuda_backward\n");
-          if (dc_packed_data)
-            cudaFree(dc_packed_data);
-          return;
-        }
-        b_transposed_data_ptr = b_transposed_packed_data;
-      }
-
+      // NOTE: da = dc @ B.T
+      // NT Kernel: X=dc, Y=b, Z=da.
+      // dc: (batches, M, N)
+      // b: (batches, K, N)
+      // da: (batches, M, K)
+      
       // Define grid and block dimensions for this kernel call
       dim3 block_dim_da(BLOCKSIZE, BLOCKSIZE, 1);
-      dim3 grid_dim_da(CEIL_DIV(M, BLOCKSIZE), CEIL_DIV(K, BLOCKSIZE), batches);
+      // NT Kernel args: (batches, rows, inners, cols) -> (batches, M, N, K)
+      // rows=M, inners=N (common dim), cols=K (output cols)
+      dim3 grid_dim_da(CEIL_DIV(K, BLOCKSIZE), CEIL_DIV(M, BLOCKSIZE), batches);
+      
+      // Need to pass packed data if available, or raw data
+      const float *dc_ptr = (const float *)dc_data_ptr;
+      const float *b_ptr = (const float *)b->data;
+      void *b_packed = NULL;
+      
+      if (!is_contiguous(b)) {
+        pack_tensor_to_contiguous_buffer_cuda(b, &b_packed);
+        if (b_packed == NULL) {
+            fprintf(stderr, "Failed to pack B in matmul_cuda_backward\n");
+            if (dc_packed_data) cudaFree(dc_packed_data);
+            return;
+        }
+        b_ptr = (const float *)b_packed;
+      }
 
-      matmul_cuda_forward_contig_kernel<<<grid_dim_da, block_dim_da>>>(
-          (const float *)dc_data_ptr, (const float *)b_transposed_data_ptr,
+      matmul_cuda_forward_nt_kernel<<<grid_dim_da, block_dim_da>>>(
+          dc_ptr, b_ptr,
           (float *)da->data, batches, M, N, K);
 
-      if (b_transposed_packed_data)
-        cudaFree(b_transposed_packed_data);
+      if (b_packed) cudaFree(b_packed);
     }
 
     if (b->requires_grad) {
-      const Tensor *a_inputs_array[] = {a};
-      Tensor a_transposed_struct;
-      transpose_cpu_forward(a_inputs_array, &a_transposed_struct, a->ndim - 2,
-                            a->ndim - 1);
-
-      void *a_transposed_data_ptr = a_transposed_struct.data;
-      void *a_transposed_packed_data = NULL;
-
-      if (!is_contiguous(&a_transposed_struct)) {
-        pack_tensor_to_contiguous_buffer_cuda(&a_transposed_struct,
-                                              &a_transposed_packed_data);
-        if (a_transposed_packed_data == NULL) {
-          fprintf(stderr,
-                  "Failed to pack transposed A in matmul_cuda_backward\n");
-          if (dc_packed_data)
-            cudaFree(dc_packed_data);
-          return;
-        }
-        a_transposed_data_ptr = a_transposed_packed_data;
-      }
-
-      // Define grid and block dimensions for this kernel call
+      // NOTE: db = A.T @ dc
+      // TN Kernel: X=a, Y=dc, Z=db.
+      // a: (batches, M, K)
+      // dc: (batches, M, N)
+      // db: (batches, K, N)
+      
+      // TN Kernel args: (batches, rows, inners, cols) -> (batches, K, M, N)
+      // rows=K, inners=M (common dim), cols=N (output cols)
       dim3 block_dim_db(BLOCKSIZE, BLOCKSIZE, 1);
-      dim3 grid_dim_db(CEIL_DIV(K, BLOCKSIZE), CEIL_DIV(N, BLOCKSIZE), batches);
-
-      matmul_cuda_forward_contig_kernel<<<grid_dim_db, block_dim_db>>>(
-          (const float *)a_transposed_data_ptr, (const float *)dc_data_ptr,
+      dim3 grid_dim_db(CEIL_DIV(N, BLOCKSIZE), CEIL_DIV(K, BLOCKSIZE), batches);
+      
+      const float *a_ptr = (const float *)a->data;
+      const float *dc_ptr = (const float *)dc_data_ptr;
+      void *a_packed = NULL;
+      
+      if (!is_contiguous(a)) {
+        pack_tensor_to_contiguous_buffer_cuda(a, &a_packed);
+        if (a_packed == NULL) {
+            fprintf(stderr, "Failed to pack A in matmul_cuda_backward\n");
+            if (dc_packed_data) cudaFree(dc_packed_data);
+            return;
+        }
+        a_ptr = (const float *)a_packed;
+      }
+      
+      matmul_cuda_forward_tn_kernel<<<grid_dim_db, block_dim_db>>>(
+          a_ptr, dc_ptr,
           (float *)db->data, batches, K, M, N);
-
-      if (a_transposed_packed_data)
-        cudaFree(a_transposed_packed_data);
+          
+      if (a_packed) cudaFree(a_packed);
     }
     break;
   default:

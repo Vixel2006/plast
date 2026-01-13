@@ -69,10 +69,12 @@ int main() {
   Tensor *t5 = arena_tensor_alloc(&a, &ac, (u64[]){2, 2}, 2, (u64[]){2, 1},
                                   FLOAT32, true, NULL, CPU);
 
+  zeros(t3, 4);
+  zeros(t5, 4);
   set_ones_grad(t5);
 
   Node *node1 = arena_node_alloc(&a, (Tensor *[]){t1, t2}, 2, t3,
-                                 get_op_impl(ADD), 0, false);
+                                 get_op_impl(MATMUL), 0, false);
   Node *node2 = arena_node_alloc(&a, (Tensor *[]){t3, t4}, 2, t5,
                                  get_op_impl(ADD), 0, false);
 

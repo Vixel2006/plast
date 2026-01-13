@@ -39,11 +39,18 @@ void topological_sort(DAG *dag, Node *root) {
   insert_node(dag, root);
 }
 
-void build_dag(DAG *dag, Node *root) {
-  // Reset visited flags before traversal
-  for (u64 i = 0; i < dag->count; ++i) {
-    dag->nodes[i]->visited = false;
+void reset_node_flags(Node *node) {
+  if (!node || !node->visited) return;
+  node->visited = false;
+  for (u64 i = 0; i < node->num_inputs; ++i) {
+    if (node->inputs[i]->creator) {
+      reset_node_flags(node->inputs[i]->creator);
+    }
   }
+}
+
+void build_dag(DAG *dag, Node *root) {
+  reset_node_flags(root);
   topological_sort(dag, root);
 }
 
