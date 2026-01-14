@@ -7,7 +7,7 @@
 
 **Plast** is a professional-grade, zero-dependency deep learning framework built entirely from the ground up in C and CUDA. It bridges the gap between high-level AI research and low-level systems engineering, delivering a high-performance training engine that rivals the core implementations of industry standards.
 
-## 🚀 Engineering Excellence & Technical Depth
+## Engineering Excellence & Technical Depth
 
 ### 1. Production-Ready Autograd Engine
 Plast implements a sophisticated Automatic Differentiation engine based on Dynamic Computational Graphs.
@@ -27,7 +27,7 @@ Plast avoids the overhead of standard garbage collection through a custom **Aren
 - **Deterministic Memory Profile**: Perfect for resource-constrained environments where predictable memory behavior is non-negotiable.
 - **Cross-Device Unified Interface**: A consistent memory management layer across CPU and GPU memory spaces.
 
-## 🏗 System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -40,7 +40,7 @@ graph TD
     G --> D
 ```
 
-## 📈 Roadmap & Future Vision
+## Roadmap & Future Vision
 - [ ] **Python Ecosystem Integration**: CFFI/Pybind11 bindings for seamless interoperability with the broader AI ecosystem.
 - [ ] **Mixed Precision Training**: Support for FP16 and BF16 to accelerate training on modern Tensor Cores.
 - [ ] **Distributed High-Performance Computing**: Cluster-scale training support via MPI and NCCL.

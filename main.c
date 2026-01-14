@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "graph.h"
+#include "kernels/abs.h"
 #include "kernels/add.h"
 #include "kernels/cpu_utils.h"
 #include "kernels/div.h"
@@ -22,7 +23,14 @@
 #include "optimizers/zero_grad.h"
 #include "tensor.h"
 
-// Helper to print a tensor
+void rand_init(Tensor *t, u64 num_elements) {
+  float *d = (float *)t->data;
+  float scale = sqrtf(2.0f / (float)t->shape[0]);
+  for (u64 i = 0; i < num_elements; ++i) {
+    d[i] = ((float)rand() / (float)RAND_MAX * 2.0f - 1.0f) * scale;
+  }
+}
+
 void print_tensor(Tensor *t, const char *name) {
   printf("%s (shape: [", name);
   for (u64 i = 0; i < t->ndim; ++i) {
@@ -38,62 +46,116 @@ void print_tensor(Tensor *t, const char *name) {
     return;
   }
   float *data_h = (float *)malloc(total_elements * sizeof(float));
-
-  if (t->device == CUDA) {
-    printf("Cannot print CUDA tensor data from host.\n");
-    free(data_h);
-    return;
-  } else {
-    memcpy(data_h, t->data, total_elements * sizeof(float));
-  }
+  memcpy(data_h, t->data, total_elements * sizeof(float));
 
   printf("[");
   for (u64 i = 0; i < total_elements; ++i) {
     printf("%.4f", data_h[i]);
     if (i < total_elements - 1)
       printf(", ");
+    if ((i + 1) % t->shape[t->ndim - 1] == 0 && i < total_elements - 1)
+        printf("\n ");
   }
   printf("]\n\n");
   free(data_h);
 }
 
 int main() {
-  Arena a = arena_create(Mib(3), CPU);
-  Arena ac = arena_create(Mib(3), CPU);
+  srand(42);
+  Arena a = arena_create(Mib(10), CPU);
+  Arena ac = arena_create(Mib(10), CPU);
 
-  Tensor *t1 = init(&a, &ac, CPU, FLOAT32, (u64[]){2, 2}, 2, true, ones);
-  Tensor *t2 = init(&a, &ac, CPU, FLOAT32, (u64[]){2, 2}, 2, true, ones);
-  Tensor *t3 = arena_tensor_alloc(&a, &ac, (u64[]){2, 2}, 2, (u64[]){2, 1},
-                                  FLOAT32, true, NULL, CPU);
-  Tensor *t4 = init(&a, &ac, CPU, FLOAT32, (u64[]){2, 2}, 2, true, ones);
-  Tensor *t5 = arena_tensor_alloc(&a, &ac, (u64[]){2, 2}, 2, (u64[]){2, 1},
-                                  FLOAT32, true, NULL, CPU);
+  // XOR Data
+  float x_data[] = {0, 0, 0, 1, 1, 0, 1, 1};
+  float y_data[] = {0, 1, 1, 0};
 
-  zeros(t3, 4);
-  zeros(t5, 4);
-  set_ones_grad(t5);
+  Tensor *X = init(&a, &ac, CPU, FLOAT32, (u64[]){4, 2}, 2, false, NULL);
+  memcpy(X->data, x_data, sizeof(x_data));
 
-  Node *node1 = arena_node_alloc(&a, (Tensor *[]){t1, t2}, 2, t3,
-                                 get_op_impl(MATMUL), 0, false);
-  Node *node2 = arena_node_alloc(&a, (Tensor *[]){t3, t4}, 2, t5,
-                                 get_op_impl(ADD), 0, false);
+  Tensor *Y = init(&a, &ac, CPU, FLOAT32, (u64[]){4, 1}, 2, false, NULL);
+  memcpy(Y->data, y_data, sizeof(y_data));
 
-  printf("node 1 = %p, node 2 = %p\n", t3->creator, t5->creator);
+  // Parameters
+  int hidden_size = 8;
+  Tensor *W1 = init(&a, &ac, CPU, FLOAT32, (u64[]){2, hidden_size}, 2, true, rand_init);
+  Tensor *b1 = init(&a, &ac, CPU, FLOAT32, (u64[]){1, hidden_size}, 2, true, zeros);
+  Tensor *W2 = init(&a, &ac, CPU, FLOAT32, (u64[]){hidden_size, 1}, 2, true, rand_init);
+  Tensor *b2 = init(&a, &ac, CPU, FLOAT32, (u64[]){1, 1}, 2, true, zeros);
 
-  forward(node2);
-  backward(node2);
-  //  backward(node1);
+  // Constants
+  Tensor *two = init(&a, &ac, CPU, FLOAT32, (u64[]){1}, 1, false, NULL);
+  ((float*)two->data)[0] = 2.0f;
 
-  print_tensor(t5, "t5");
-  print_tensor(t4, "t4");
-  print_tensor(t3, "t3");
-  print_tensor(t2, "t2");
-  print_tensor(t1, "t1");
-  print_tensor(t1->grad, "grad t1");
-  print_tensor(t2->grad, "grad t2");
-  print_tensor(t3->grad, "grad t3");
-  print_tensor(t4->grad, "grad t4");
-  print_tensor(t5->grad, "grad t5");
+  // Define graph
+  // Layer 1
+  u64 h1_shape[] = {4, hidden_size};
+  Tensor *h1_mm = init(&a, &ac, CPU, FLOAT32, h1_shape, 2, true, NULL);
+  Node *n_h1_mm = arena_node_alloc(&a, (Tensor *[]){X, W1}, 2, h1_mm, get_op_impl(MATMUL), 0, false);
+
+  Tensor *h1 = init(&a, &ac, CPU, FLOAT32, h1_shape, 2, true, NULL);
+  Node *n_h1 = arena_node_alloc(&a, (Tensor *[]){h1_mm, b1}, 2, h1, get_op_impl(ADD), 0, false);
+
+  // ReLU(x) = (x + |x|) / 2
+  Tensor *h1_abs = init(&a, &ac, CPU, FLOAT32, h1_shape, 2, true, NULL);
+  Node *n_h1_abs = arena_node_alloc(&a, (Tensor *[]){h1}, 1, h1_abs, get_op_impl(ABS), 0, false);
+
+  Tensor *h1_plus_abs = init(&a, &ac, CPU, FLOAT32, h1_shape, 2, true, NULL);
+  Node *n_h1_plus_abs = arena_node_alloc(&a, (Tensor *[]){h1, h1_abs}, 2, h1_plus_abs, get_op_impl(ADD), 0, false);
+
+  Tensor *a1 = init(&a, &ac, CPU, FLOAT32, h1_shape, 2, true, NULL);
+  Node *n_a1 = arena_node_alloc(&a, (Tensor *[]){h1_plus_abs, two}, 2, a1, get_op_impl(DIV), 0, false);
+
+  // Layer 2
+  u64 logits_shape[] = {4, 1};
+  Tensor *logits_mm = init(&a, &ac, CPU, FLOAT32, logits_shape, 2, true, NULL);
+  Node *n_logits_mm = arena_node_alloc(&a, (Tensor *[]){a1, W2}, 2, logits_mm, get_op_impl(MATMUL), 0, false);
+
+  Tensor *logits = init(&a, &ac, CPU, FLOAT32, logits_shape, 2, true, NULL);
+  Node *n_logits = arena_node_alloc(&a, (Tensor *[]){logits_mm, b2}, 2, logits, get_op_impl(ADD), 0, false);
+
+  // Loss (MSE)
+  Tensor *diff = init(&a, &ac, CPU, FLOAT32, logits_shape, 2, true, NULL);
+  Node *n_diff = arena_node_alloc(&a, (Tensor *[]){logits, Y}, 2, diff, get_op_impl(SUB), 0, false);
+
+  Tensor *sq_diff = init(&a, &ac, CPU, FLOAT32, logits_shape, 2, true, NULL);
+  Node *n_sq_diff = arena_node_alloc(&a, (Tensor *[]){diff, diff}, 2, sq_diff, get_op_impl(MUL), 0, false);
+
+  Tensor *loss = init(&a, &ac, CPU, FLOAT32, (u64[]){1}, 1, true, NULL);
+  Node *n_loss = arena_node_alloc(&a, (Tensor *[]){sq_diff}, 1, loss, get_op_impl(MEAN), MAX_NDIM + 1, false);
+
+  SGD optimizer = arena_alloc_sgd(0.01f);
+  Tensor *params[] = {W1, b1, W2, b2};
+  Tensor *intermediates[] = {h1_mm, h1, h1_abs, h1_plus_abs, a1, logits_mm, logits, diff, sq_diff, loss};
+
+  printf("Starting training...\n");
+  for (int epoch = 0; epoch < 20000; ++epoch) {
+    // Zero gradients
+    for (int i = 0; i < 4; ++i) zero_grad_cpu(params[i]);
+    for (int i = 0; i < 10; ++i) zero_grad_cpu(intermediates[i]);
+
+    // Zero data of intermediate tensors that use += (like MATMUL)
+    zeros(h1_mm, numel(h1_mm));
+    zeros(logits_mm, numel(logits_mm));
+
+    forward(n_loss);
+    
+    if (epoch % 2000 == 0) {
+      printf("Epoch %d, Loss: %.6f\n", epoch, ((float*)loss->data)[0]);
+    }
+
+    set_ones_grad(loss);
+    backward(n_loss);
+
+    sgd_step_cpu(&optimizer, params, 4);
+  }
+
+  printf("\nFinal Predictions:\n");
+  zeros(h1_mm, numel(h1_mm));
+  zeros(logits_mm, numel(logits_mm));
+  forward(n_loss);
+  print_tensor(logits, "Predictions");
+  print_tensor(Y, "Targets");
+  printf("Final Loss: %.6f\n", ((float*)loss->data)[0]);
 
   arena_release(&a);
   arena_release(&ac);
@@ -101,193 +163,6 @@ int main() {
   return 0;
 }
 
-/*
-// Initialization function for random weights
-void random_uniform_init(Tensor *t, u64 num_elements) {
-  float *data = (float *)t->data;
-  for (u64 i = 0; i < num_elements; ++i) {
-    data[i] = ((float)rand() / RAND_MAX) * 2.0f - 1.0f; // Range [-1, 1]
-  }
-}
 
-// --- Operation Wrappers ---
-// These wrappers simplify the process of creating computation graph nodes.
 
-Tensor *_apply_op(Op op, Tensor **inputs, int num_inputs, u64 *output_shape,
-                  u64 output_ndim, u64 dim, bool keepdim) {
-  Tensor *output = init(&meta_arena, &compute_arena, CPU, FLOAT32, output_shape,
-                        output_ndim, true, zeros);
-  Node *node = arena_node_alloc(&meta_arena, inputs, num_inputs, output, op,
-                                dim, keepdim);
-  output->creator = node;
-  return output;
-}
 
-Tensor *_matmul(Tensor *a, Tensor *b) {
-  u64 output_shape[] = {a->shape[0], b->shape[1]};
-  Op op = get_op_impl(MATMUL);
-  return _apply_op(op, (Tensor *[]){a, b}, 2, output_shape, 2, 0, false);
-}
-
-Tensor *_add(Tensor *a, Tensor *b) {
-  u64 broadcast_shape[MAX_NDIM];
-  u64 broadcast_ndim;
-  get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcast_shape,
-                      &broadcast_ndim);
-  Op op = get_op_impl(ADD);
-  return _apply_op(op, (Tensor *[]){a, b}, 2, broadcast_shape, broadcast_ndim,
-                   0, false);
-}
-
-Tensor *_sub(Tensor *a, Tensor *b) {
-  u64 broadcast_shape[MAX_NDIM];
-  u64 broadcast_ndim;
-  get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcast_shape,
-                      &broadcast_ndim);
-  Op op = get_op_impl(SUB);
-  return _apply_op(op, (Tensor *[]){a, b}, 2, broadcast_shape, broadcast_ndim,
-                   0, false);
-}
-
-Tensor *_mul(Tensor *a, Tensor *b) {
-  u64 broadcast_shape[MAX_NDIM];
-  u64 broadcast_ndim;
-  get_broadcast_shape(a->shape, a->ndim, b->shape, b->ndim, broadcast_shape,
-                      &broadcast_ndim);
-  Op op = get_op_impl(MUL);
-  return _apply_op(op, (Tensor *[]){a, b}, 2, broadcast_shape, broadcast_ndim,
-                   0, false);
-}
-
-Tensor *_leaky_relu(Tensor *a) {
-  Op op = get_op_impl(LEAKY_RELU);
-  return _apply_op(op, (Tensor *[]){a}, 1, a->shape, a->ndim, 0, false);
-}
-
-Tensor *_mean(Tensor *a) {
-  u64 output_shape[] = {1};
-  Op op = get_op_impl(MEAN);
-  return _apply_op(op, (Tensor *[]){a}, 1, output_shape, 1, 0, false);
-}
-
-// --- Neural Network Layer Definition ---
-
-typedef struct {
-  Tensor *W;
-  Tensor *b;
-} Linear;
-
-Linear init_linear(u64 in_features, u64 out_features, bool requires_grad) {
-  Linear layer;
-  u64 w_shape[] = {in_features, out_features};
-  layer.W = init(&meta_arena, &data_arena, CPU, FLOAT32, w_shape, 2,
-                 requires_grad, random_uniform_init);
-
-  u64 b_shape[] = {1, out_features};
-  layer.b = init(&meta_arena, &data_arena, CPU, FLOAT32, b_shape, 2,
-                 requires_grad, zeros);
-  return layer;
-}
-
-Tensor *linear_forward(Linear *layer, Tensor *x) {
-  Tensor *matmul_res = _matmul(x, layer->W);
-  Tensor *add_res = _add(matmul_res, layer->b);
-  return add_res;
-}
-
-// --- Main Training ---
-
-int main() {
-  srand(time(NULL));
-
-  // Initialize arenas
-  meta_arena = arena_create(Mib(64), CPU);
-  data_arena = arena_create(Mib(64), CPU);
-  compute_arena = arena_create(Mib(64), CPU);
-
-  printf("Training a 2-layer neural network for the XOR problem.\n");
-  printf("A 1-layer network cannot solve XOR, so a hidden layer is used.\n\n");
-
-  // 1. Prepare Data
-  u64 x_shape[] = {1, 2};
-  Tensor *X_train =
-      init(&meta_arena, &data_arena, CPU, FLOAT32, x_shape, 2, false, zeros);
-  float x_data[] = {0.0f, 1.0f};
-  memcpy(X_train->data, x_data, sizeof(x_data));
-
-  u64 y_shape[] = {1, 1};
-  Tensor *Y_train =
-      init(&meta_arena, &data_arena, CPU, FLOAT32, y_shape, 2, false, zeros);
-  float y_data[] = {1.0f};
-  memcpy(Y_train->data, y_data, sizeof(y_data));
-
-  print_tensor(X_train, "X_train");
-  print_tensor(Y_train, "Y_train");
-
-  // 2. Define Model
-  Linear layer1 = init_linear(2, 2, true); // Hidden layer: 2 inputs, 2 outputs
-  Linear layer2 = init_linear(2, 1, true); // Output layer: 2 inputs, 1 output
-
-  Tensor *params[] = {layer1.W, layer1.b, layer2.W, layer2.b};
-  int num_params = sizeof(params) / sizeof(params[0]);
-
-  // 3. Optimizer
-  float learning_rate = 0.1f;
-  SGD sgd = arena_alloc_sgd(learning_rate);
-
-  // 4. Training Loop
-  int epochs = 2000;
-  printf("Starting training for %d epochs with LR=%.2f...\n\n", epochs,
-         learning_rate);
-
-  for (int i = 0; i < epochs; ++i) {
-    // --- Forward pass ---
-    Tensor *h = linear_forward(&layer1, X_train);
-    Tensor *h_act = _leaky_relu(h);
-    Tensor *y_logits = linear_forward(&layer2, h_act);
-    Tensor *y_pred = _leaky_relu(y_logits);
-
-    // --- Compute loss (MSE) ---
-    Tensor *diff = _sub(y_pred, Y_train);
-    Tensor *sq_diff = _mul(diff, diff);
-    Tensor *loss = _mean(sq_diff);
-
-    if (i % 200 == 0 || i == epochs - 1) {
-      print_tensor(loss, "Loss");
-    }
-
-    // --- Backward pass ---
-    set_ones_grad(loss);
-    backward(loss->creator); // Start backward from the loss node
-
-    // --- Update weights ---
-    sgd_step_cpu(&sgd, params, num_params);
-
-    // --- Zero gradients for next iteration ---
-    for (int j = 0; j < num_params; ++j) {
-      zero_grad_cpu(params[j]);
-    }
-
-    // Reset the computation arena for the next forward pass
-    arena_reset(&compute_arena);
-  }
-
-  printf("\n--- Training Finished ---\n\n");
-
-  // 5. Final Predictions
-  Tensor *h = linear_forward(&layer1, X_train);
-  Tensor *h_act = _leaky_relu(h);
-  Tensor *y_logits = linear_forward(&layer2, h_act);
-  Tensor *y_pred = _leaky_relu(y_logits);
-
-  print_tensor(y_pred, "Final Predictions");
-  print_tensor(Y_train, "True Labels");
-
-  // Release memory
-  arena_release(&compute_arena);
-  arena_release(&data_arena);
-  arena_release(&meta_arena);
-
-  return 0;
-}
-*/
