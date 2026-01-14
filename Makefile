@@ -15,8 +15,8 @@ C_SOURCES  = $(wildcard src/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/
 CU_SOURCES = $(wildcard src/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildcard src/optimizers/cuda/*.cu)
 
 # Objects
-C_OBJS  = $(C_SOURCES:.c=.o)
-CU_OBJS = $(CU_SOURCES:.cu=.o)
+C_OBJS  = $(C_SOURCES:.c=.c.o)
+CU_OBJS = $(CU_SOURCES:.cu=.cu.o)
 
 # Target
 TARGET = plast
@@ -36,6 +36,6 @@ $(TARGET): $(C_OBJS) $(CU_OBJS)
 	$(NVCC) $(NVFLAGS) $(DEBUG) $(INCLUDES) -c $< -o $@
 
 clean:
-	rm -f $(C_OBJS) $(CU_OBJS) $(TARGET)
+	rm -f $(C_OBJS) $(CU_OBJS)
 
 .PHONY: all clean

@@ -1,0 +1,6 @@
+*.o
+*.cu.o
+*.c.o
+build/
+.venv/
+__pycache__/
