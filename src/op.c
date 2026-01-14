@@ -41,8 +41,8 @@ Op get_op_impl(OP_TYPE op_type) {
   case MUL:
     op.cpu_forward = mul_cpu_forward;
     op.cpu_backward = mul_cpu_backward;
-    op.cuda_forward = sub_cuda_forward;
-    op.cuda_backward = sub_cuda_backward;
+    op.cuda_forward = mul_cuda_forward;
+    op.cuda_backward = mul_cuda_backward;
     break;
   case DIV:
     op.cpu_forward = div_cpu_forward;

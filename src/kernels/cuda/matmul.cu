@@ -11,8 +11,8 @@ __global__ void matmul_cuda_forward_contig_kernel(const float *a,
                                                   const float *b, float *c,
                                                   u64 batches, u64 rows,
                                                   u64 inners, u64 cols) {
-  const u64 tx = threadIdx.x % BLOCKSIZE;
-  const u64 ty = threadIdx.x / BLOCKSIZE;
+  const u64 tx = threadIdx.x;
+  const u64 ty = threadIdx.y;
 
   const u64 col = blockIdx.x * BLOCKSIZE + tx;
   const u64 row = blockIdx.y * BLOCKSIZE + ty;
@@ -50,8 +50,8 @@ __global__ void matmul_cuda_forward_contig_kernel(const float *a,
 __global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b,
                                                 float *c, u64 batches, u64 rows,
                                                 u64 inners, u64 cols) {
-  const u64 tx = threadIdx.x % BLOCKSIZE;
-  const u64 ty = threadIdx.x / BLOCKSIZE;
+  const u64 tx = threadIdx.x;
+  const u64 ty = threadIdx.y;
 
   const u64 col = blockIdx.x * BLOCKSIZE + tx;
   const u64 row = blockIdx.y * BLOCKSIZE + ty;
@@ -93,8 +93,8 @@ __global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b,
 __global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b,
                                                 float *c, u64 batches, u64 rows,
                                                 u64 inners, u64 cols) {
-  const u64 tx = threadIdx.x % BLOCKSIZE;
-  const u64 ty = threadIdx.x / BLOCKSIZE;
+  const u64 tx = threadIdx.x;
+  const u64 ty = threadIdx.y;
 
   const u64 col = blockIdx.x * BLOCKSIZE + tx;
   const u64 row = blockIdx.y * BLOCKSIZE + ty;
@@ -291,6 +291,8 @@ extern "C" void matmul_cuda_forward(const Tensor **inputs, Tensor *output,
     cudaFree(a_packed_data);
   if (b_packed_data)
     cudaFree(b_packed_data);
+
+  cudaDeviceSynchronize();
 }
 
 extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output,

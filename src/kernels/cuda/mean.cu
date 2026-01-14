@@ -28,12 +28,14 @@ __global__ void mean_cuda_forward_float_contig_kernel(const float *a, float *c,
   u64 i = (blockDim.x * 2) * blockIdx.x + threadIdx.x;
   u64 grid_size = blockDim.x * 2 * gridDim.x;
 
+  float sum_val = 0.0f;
   while (i < num_elements) {
-    float val1 = (i < num_elements) ? a[i] : 0.0f;
-    float val2 = (i + blockDim.x < num_elements) ? a[i + blockDim.x] : 0.0f;
-    sdata[tid] = val1 + val2;
+    sum_val += a[i];
+    if (i + blockDim.x < num_elements)
+      sum_val += a[i + blockDim.x];
     i += grid_size;
   }
+  sdata[tid] = sum_val;
   __syncthreads();
 
   for (u64 s = blockDim.x / 2; s > 32; s >>= 1) {
@@ -321,6 +323,7 @@ void mean_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
       }
     }
   }
+  cudaDeviceSynchronize();
 }
 
 void mean_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
