@@ -23,6 +23,14 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Install project with test deps
+        run: |
+          uv venv --python 3.12
+          uv pip install -e ".[test]"
+
+      - name: Run tests
+        run: uv run pytest tests/ -v --timeout=120 -m "not slow and not cuda"
+
       - name: Build source distribution and wheel
         run: uv build
 
