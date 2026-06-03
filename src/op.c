@@ -26,6 +26,7 @@
 #include "kernels/view.h"
 
 // Op has a CUDA implementation — assign both backends
+#ifdef CUDA_AVAILABLE
 #define OP_CUDA(NAME, name)                                                                        \
   case NAME:                                                                                       \
     op.cpu_forward = name##_cpu_forward;                                                           \
@@ -33,6 +34,15 @@
     op.cuda_forward = name##_cuda_forward;                                                         \
     op.cuda_backward = name##_cuda_backward;                                                       \
     break;
+#else
+#define OP_CUDA(NAME, name)                                                                        \
+  case NAME:                                                                                       \
+    op.cpu_forward = name##_cpu_forward;                                                           \
+    op.cpu_backward = name##_cpu_backward;                                                         \
+    op.cuda_forward = NULL;                                                                        \
+    op.cuda_backward = NULL;                                                                       \
+    break;
+#endif
 
 // CPU-only op — CUDA fallback uses same function (shape ops, etc.)
 #define OP_CPU(NAME, name)                                                                         \
