@@ -15,10 +15,12 @@ class custom_build_ext(build_ext):
         if HAS_CUDA and os.path.isdir(cuda_include):
             include_dirs.insert(0, cuda_include)
 
-        c_srcs, cu_srcs = [], []
+        c_srcs, cpp_srcs, cu_srcs = [], [], []
         for src in ext.sources:
-            if src.endswith((".c", ".cpp")):
+            if src.endswith(".c"):
                 c_srcs.append(src)
+            elif src.endswith(".cpp"):
+                cpp_srcs.append(src)
             elif src.endswith(".cu") and HAS_CUDA:
                 cu_srcs.append(src)
 
@@ -33,14 +35,23 @@ class custom_build_ext(build_ext):
             objs.append(obj)
 
         py_includes = subprocess.check_output(["python3-config", "--includes"]).decode().split()
-        cc = "g++" if any(s.endswith(".cpp") for s in c_srcs) else "cc"
+
+        base_cflags = ["-O3", "-fPIC", "-march=native", "-fopenmp"]
+        if HAS_CUDA:
+            base_cflags.append("-DCUDA_AVAILABLE")
 
         for src in c_srcs:
             obj = src + ".o"
-            cflags = ["-O3", "-fPIC", "-march=native", "-fopenmp"]
-            if HAS_CUDA:
-                cflags.append("-DCUDA_AVAILABLE")
-            cmd = [cc] + cflags
+            cmd = ["cc"] + base_cflags
+            for d in include_dirs:
+                cmd += ["-I", d]
+            cmd += py_includes + ["-c", src, "-o", obj]
+            subprocess.check_call(cmd)
+            objs.append(obj)
+
+        for src in cpp_srcs:
+            obj = src + ".o"
+            cmd = ["g++"] + base_cflags
             for d in include_dirs:
                 cmd += ["-I", d]
             cmd += py_includes + ["-c", src, "-o", obj]
@@ -49,12 +60,13 @@ class custom_build_ext(build_ext):
 
         ext_path = self.get_ext_fullpath(ext.name)
         os.makedirs(os.path.dirname(ext_path), exist_ok=True)
+        linker = "g++"
 
         if HAS_CUDA:
             link = ["nvcc", "-shared", "-o", ext_path] + objs
             link += ["-L/usr/local/cuda/lib64", "-lcudart", "-lgomp"]
         else:
-            link = [cc, "-shared", "-o", ext_path] + objs + ["-lgomp", "-fPIC"]
+            link = [linker, "-shared", "-o", ext_path] + objs + ["-lgomp", "-fPIC"]
         link += ["-I" + pybind11.get_include()] + py_includes
         subprocess.check_call(link)
 
