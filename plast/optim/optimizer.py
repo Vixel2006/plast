@@ -1,8 +1,10 @@
 from ..plast_core import Device, zero_grad_cpu
+
 try:
     from ..plast_core import zero_grad_cuda
 except ImportError:
     zero_grad_cuda = None
+
 
 class Optimizer:
     def __init__(self, params, defaults):

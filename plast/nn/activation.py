@@ -1,12 +1,14 @@
 from .module import Module
 from . import functional as F
 
+
 class ReLU(Module):
     def forward(self, input):
         return F.relu(input)
 
     def __repr__(self):
         return "ReLU()"
+
 
 class LeakyReLU(Module):
     def __init__(self, negative_slope=0.01):
@@ -19,6 +21,7 @@ class LeakyReLU(Module):
     def __repr__(self):
         return f"LeakyReLU(negative_slope={self.negative_slope})"
 
+
 class Sigmoid(Module):
     def forward(self, input):
         return F.sigmoid(input)
@@ -26,12 +29,14 @@ class Sigmoid(Module):
     def __repr__(self):
         return "Sigmoid()"
 
+
 class Tanh(Module):
     def forward(self, input):
         return F.tanh(input)
 
     def __repr__(self):
         return "Tanh()"
+
 
 class Softmax(Module):
     def __init__(self, dim=-1):

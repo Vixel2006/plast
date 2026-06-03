@@ -1,9 +1,11 @@
 from .optimizer import Optimizer
 from ..plast_core import SGD as SGD_core, sgd_step_cpu, Device
+
 try:
     from ..plast_core import sgd_step_cuda
 except ImportError:
     sgd_step_cuda = None
+
 
 class SGD(Optimizer):
     def __init__(self, params, lr=0.01):
@@ -16,10 +18,10 @@ class SGD(Optimizer):
             # If lr has changed from the initial default, we update SGD_core lr
             # Since C SGD struct only has lr, we can just update it
             self._sgd.lr = lr
-            
+
             cuda_params = [p for p in group["params"] if p.device == Device.CUDA]
             cpu_params = [p for p in group["params"] if p.device == Device.CPU]
-            
+
             if cuda_params:
                 if sgd_step_cuda is not None:
                     sgd_step_cuda(self._sgd, cuda_params)

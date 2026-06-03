@@ -1,5 +1,6 @@
 from ..plast_core import Tensor
 
+
 class Module:
     def __init__(self):
         self.training = True
@@ -25,7 +26,7 @@ class Module:
             params.extend(m.parameters())
         return params
 
-    def named_parameters(self, prefix=''):
+    def named_parameters(self, prefix=""):
         named_params = []
         for name, param in self._parameters.items():
             named_params.append((f"{prefix}{name}", param))
@@ -45,6 +46,7 @@ class Module:
     def zero_grad(self):
         for p in self.parameters():
             from ..plast_core import Device, zero_grad_cpu
+
             try:
                 from ..plast_core import zero_grad_cuda
             except ImportError:
@@ -55,7 +57,7 @@ class Module:
             else:
                 zero_grad_cpu(p)
 
-    def state_dict(self, prefix=''):
+    def state_dict(self, prefix=""):
         state = {}
         for name, param in self._parameters.items():
             state[f"{prefix}{name}"] = param.numpy()
@@ -63,7 +65,7 @@ class Module:
             state.update(m.state_dict(f"{prefix}{m_name}."))
         return state
 
-    def load_state_dict(self, state_dict, prefix=''):
+    def load_state_dict(self, state_dict, prefix=""):
         for name, param in self._parameters.items():
             key = f"{prefix}{name}"
             if key in state_dict:

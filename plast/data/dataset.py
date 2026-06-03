@@ -5,6 +5,7 @@ class Dataset:
     def __len__(self):
         raise NotImplementedError
 
+
 class TensorDataset(Dataset):
     def __init__(self, *tensors):
         # We accept numpy arrays or Plast Tensors.

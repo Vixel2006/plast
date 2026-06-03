@@ -5,8 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-void max_cpu_forward_float_contig_kernel(const float *a, float *c,
-                                         u64 num_elements) {
+void max_cpu_forward_float_contig_kernel(const float *a, float *c, u64 num_elements) {
   float max_val = -FLT_MAX;
 #pragma omp parallel for reduction(max : max_val)
   for (u64 i = 0; i < num_elements; ++i) {
@@ -16,9 +15,8 @@ void max_cpu_forward_float_contig_kernel(const float *a, float *c,
   c[0] = max_val;
 }
 
-void max_cpu_backward_float_contig_kernel(const float *a, const float *c,
-                                          const float *dc, float *da,
-                                          u64 num_elements) {
+void max_cpu_backward_float_contig_kernel(const float *a, const float *c, const float *dc,
+                                          float *da, u64 num_elements) {
   const float max = c[0];
   float grad = dc[0];
   u64 count = 0;
@@ -41,10 +39,9 @@ void max_cpu_backward_float_contig_kernel(const float *a, const float *c,
   }
 }
 
-void max_cpu_forward_float_non_contig_kernel(const float *a_data,
-                                             const u64 *a_strides,
-                                             const u64 *shape, u64 ndim,
-                                             u64 num_elements, float *c_data) {
+void max_cpu_forward_float_non_contig_kernel(const float *a_data, const u64 *a_strides,
+                                             const u64 *shape, u64 ndim, u64 num_elements,
+                                             float *c_data) {
   float max_val = -FLT_MAX;
   u64 coords[MAX_NDIM];
 
@@ -59,10 +56,10 @@ void max_cpu_forward_float_non_contig_kernel(const float *a_data,
   c_data[0] = max_val;
 }
 
-void max_cpu_backward_float_non_contig_kernel(
-    const float *a_data, const u64 *a_strides, const float *c_data,
-    const float *dc_data, float *da_data, const u64 *da_strides,
-    const u64 *shape, u64 ndim, u64 num_elements) {
+void max_cpu_backward_float_non_contig_kernel(const float *a_data, const u64 *a_strides,
+                                              const float *c_data, const float *dc_data,
+                                              float *da_data, const u64 *da_strides,
+                                              const u64 *shape, u64 ndim, u64 num_elements) {
   const float max = c_data[0];
   float grad = dc_data[0];
   u64 count = 0;
@@ -91,11 +88,9 @@ void max_cpu_backward_float_non_contig_kernel(
   }
 }
 
-void max_cpu_forward_float_dim_kernel(const float *a_data, const u64 *a_strides,
-                                        const u64 *a_shape, u64 a_ndim,
-                                        float *c_data, const u64 *c_strides,
-                                        const u64 *c_shape, u64 c_ndim,
-                                        u64 dim, bool keepdim) {
+void max_cpu_forward_float_dim_kernel(const float *a_data, const u64 *a_strides, const u64 *a_shape,
+                                      u64 a_ndim, float *c_data, const u64 *c_strides,
+                                      const u64 *c_shape, u64 c_ndim, u64 dim, bool keepdim) {
   u64 output_num_elements = 1;
   for (u64 i = 0; i < c_ndim; ++i) {
     output_num_elements *= c_shape[i];
@@ -137,10 +132,11 @@ void max_cpu_forward_float_dim_kernel(const float *a_data, const u64 *a_strides,
   }
 }
 
-void max_cpu_backward_float_dim_kernel(
-    const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim,
-    const float *c_data, const u64 *c_strides, const u64 *c_shape, u64 c_ndim,
-    const float *dc_data, float *da_data, const u64 *da_strides, u64 dim, bool keepdim) {
+void max_cpu_backward_float_dim_kernel(const float *a_data, const u64 *a_strides,
+                                       const u64 *a_shape, u64 a_ndim, const float *c_data,
+                                       const u64 *c_strides, const u64 *c_shape, u64 c_ndim,
+                                       const float *dc_data, float *da_data, const u64 *da_strides,
+                                       u64 dim, bool keepdim) {
   u64 output_num_elements = 1;
   for (u64 i = 0; i < c_ndim; ++i) {
     output_num_elements *= c_shape[i];
@@ -197,14 +193,10 @@ void max_cpu_backward_float_dim_kernel(
   }
 }
 
-void max_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void max_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (dim == MAX_NDIM + 1) {
     u64 num_elements = numel(a);
@@ -212,8 +204,7 @@ void max_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
     if (is_contiguous(a)) {
       switch (a->dtype) {
       case FLOAT32:
-        max_cpu_forward_float_contig_kernel((const float *)a->data,
-                                            (float *)output->data,
+        max_cpu_forward_float_contig_kernel((const float *)a->data, (float *)output->data,
                                             num_elements);
         break;
       default:
@@ -222,23 +213,21 @@ void max_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
     } else {
       switch (a->dtype) {
       case FLOAT32:
-        max_cpu_forward_float_non_contig_kernel(
-            (const float *)a->data, a->strides, a->shape, a->ndim,
-            num_elements, (float *)output->data);
+        max_cpu_forward_float_non_contig_kernel((const float *)a->data, a->strides, a->shape,
+                                                a->ndim, num_elements, (float *)output->data);
         break;
       default:
         break;
       }
     }
   } else {
-    compute_reduction_shape_strides(a->shape, a->ndim, dim, keepdim,
-                                    output->shape, &output->ndim, output->strides);
+    compute_reduction_shape_strides(a->shape, a->ndim, dim, keepdim, output->shape, &output->ndim,
+                                    output->strides);
 
     switch (a->dtype) {
     case FLOAT32:
-      max_cpu_forward_float_dim_kernel((const float *)a->data, a->strides,
-                                       a->shape, a->ndim, (float *)output->data,
-                                       output->strides, output->shape,
+      max_cpu_forward_float_dim_kernel((const float *)a->data, a->strides, a->shape, a->ndim,
+                                       (float *)output->data, output->strides, output->shape,
                                        output->ndim, dim, keepdim);
       break;
     default:
@@ -247,14 +236,10 @@ void max_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void max_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void max_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (a->requires_grad) {
     if (dim == MAX_NDIM + 1) {
@@ -263,10 +248,9 @@ void max_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
       if (is_contiguous(a)) {
         switch (a->dtype) {
         case FLOAT32:
-          max_cpu_backward_float_contig_kernel(
-              (const float *)a->data, (const float *)output->data,
-              (const float *)output->grad->data, (float *)a->grad->data,
-              num_elements);
+          max_cpu_backward_float_contig_kernel((const float *)a->data, (const float *)output->data,
+                                               (const float *)output->grad->data,
+                                               (float *)a->grad->data, num_elements);
           break;
         default:
           break;
@@ -276,8 +260,8 @@ void max_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
         case FLOAT32:
           max_cpu_backward_float_non_contig_kernel(
               (const float *)a->data, a->strides, (const float *)output->data,
-              (const float *)output->grad->data, (float *)a->grad->data,
-              a->grad->strides, a->shape, a->ndim, num_elements);
+              (const float *)output->grad->data, (float *)a->grad->data, a->grad->strides, a->shape,
+              a->ndim, num_elements);
           break;
         default:
           break;
@@ -287,9 +271,8 @@ void max_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         max_cpu_backward_float_dim_kernel(
-            (const float *)a->data, a->strides, a->shape, a->ndim,
-            (const float *)output->data, output->strides, output->shape,
-            output->ndim, (const float *)output->grad->data,
+            (const float *)a->data, a->strides, a->shape, a->ndim, (const float *)output->data,
+            output->strides, output->shape, output->ndim, (const float *)output->grad->data,
             (float *)a->grad->data, a->grad->strides, dim, keepdim);
         break;
       default:

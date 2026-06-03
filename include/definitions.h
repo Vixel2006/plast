@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef int8_t i8;
@@ -11,6 +12,12 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-#define U64_MAX ((u64)-1)
+#define U64_MAX ((u64) - 1)
 
 #define MAX_NDIM 8
+
+typedef struct {
+  u64 dim;
+  u64 keepdim;
+  float fval;
+} KernelParams;

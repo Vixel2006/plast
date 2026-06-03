@@ -1,0 +1,12 @@
+BasedOnStyle: LLVM
+IndentWidth: 2
+ColumnLimit: 100
+UseTab: Never
+PointerAlignment: Right
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+SpaceBeforeParens: ControlStatements
+AlignAfterOpenBracket: Align
+SortIncludes: false

@@ -85,7 +85,7 @@ class TestSmallClassifier:
         n = 100
         x_data = np.random.randn(n, 3).astype(np.float32)
         w_true = np.array([[2.0], [-1.0], [0.5]], dtype=np.float32)
-        y_data = (x_data @ w_true + 0.1 * np.random.randn(n, 1).astype(np.float32))
+        y_data = x_data @ w_true + 0.1 * np.random.randn(n, 1).astype(np.float32)
 
         model = plast.nn.Linear(3, 1, device=plast.Device.CPU)
         loss_fn = plast.nn.MSELoss()

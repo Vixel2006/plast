@@ -1,10 +1,9 @@
 #pragma once
 
 #include "tensor.h"
-#include <stdarg.h>
 
-typedef void (*ForwardKernel)(const Tensor **inputs, Tensor *output, ...);
-typedef void (*BackwardKernel)(Tensor **inputs, const Tensor *output, ...);
+typedef void (*ForwardKernel)(const Tensor **inputs, Tensor *output, KernelParams params);
+typedef void (*BackwardKernel)(Tensor **inputs, const Tensor *output, KernelParams params);
 
 typedef enum OP_TYPE {
   ADD,
@@ -25,12 +24,12 @@ typedef enum OP_TYPE {
   UNSQUEEZE,
   SQUEEZE,
   EXPAND,
+  FLATTEN,
   BROADCAST,
   MEAN,
   MIN,
   MAX,
   SUM,
-  FLATTEN,
   CONV2D
 } OP_TYPE;
 
@@ -53,4 +52,3 @@ BackwardKernel backward_kernel_dispatcher(Op op, DEVICE device);
 #ifdef __cplusplus
 }
 #endif
-

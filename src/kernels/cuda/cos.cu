@@ -4,16 +4,14 @@
 #include <math.h>
 #include <stdarg.h>
 
-__global__ void cos_cuda_forward_float_contig_kernel(const float *a, float *c,
-                                                     u64 num_elements) {
+__global__ void cos_cuda_forward_float_contig_kernel(const float *a, float *c, u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     c[idx] = __cosf(a[idx]);
   }
 }
 
-__global__ void cos_cuda_backward_float_contig_kernel(const float *dout,
-                                                      const float *a, float *da,
+__global__ void cos_cuda_backward_float_contig_kernel(const float *dout, const float *a, float *da,
                                                       u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
@@ -22,9 +20,10 @@ __global__ void cos_cuda_backward_float_contig_kernel(const float *dout,
   }
 }
 
-__global__ void cos_cuda_forward_float_non_contig_kernel(
-    const float *a_data, const u64 *a_strides, float *c_data,
-    const u64 *c_strides, const u64 *shape, u64 ndim, u64 num_elements) {
+__global__ void cos_cuda_forward_float_non_contig_kernel(const float *a_data, const u64 *a_strides,
+                                                         float *c_data, const u64 *c_strides,
+                                                         const u64 *shape, u64 ndim,
+                                                         u64 num_elements) {
   u64 linear_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (linear_idx < num_elements) {
     u64 coords[MAX_NDIM];
@@ -36,9 +35,8 @@ __global__ void cos_cuda_forward_float_non_contig_kernel(
 }
 
 __global__ void cos_cuda_backward_float_non_contig_kernel(
-    const float *dout_data, const u64 *dout_strides, const float *a_data,
-    const u64 *a_strides, float *da_data, const u64 *da_strides,
-    const u64 *shape, u64 ndim, u64 num_elements) {
+    const float *dout_data, const u64 *dout_strides, const float *a_data, const u64 *a_strides,
+    float *da_data, const u64 *da_strides, const u64 *shape, u64 ndim, u64 num_elements) {
   u64 linear_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (linear_idx < num_elements) {
     u64 coords[MAX_NDIM];
@@ -52,7 +50,7 @@ __global__ void cos_cuda_backward_float_non_contig_kernel(
   }
 }
 
-void cos_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void cos_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   u64 num_elements = numel(a);
 
@@ -72,8 +70,8 @@ void cos_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
     switch (a->dtype) {
     case FLOAT32:
       cos_cuda_forward_float_non_contig_kernel<<<grid_size, block_size>>>(
-          (const float *)a->data, a->strides, (float *)output->data,
-          output->strides, a->shape, a->ndim, num_elements);
+          (const float *)a->data, a->strides, (float *)output->data, output->strides, a->shape,
+          a->ndim, num_elements);
       break;
     default:
       break;
@@ -82,7 +80,7 @@ void cos_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void cos_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void cos_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   u64 num_elements = numel(a);
 
@@ -103,11 +101,9 @@ void cos_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
     switch (a->dtype) {
     case FLOAT32:
       cos_cuda_backward_float_non_contig_kernel<<<grid_size, block_size>>>(
-          (const float *)output->grad->data, output->grad->strides,
-          (const float *)a->data, a->strides,
-          a->requires_grad ? (float *)a->grad->data : NULL,
-          a->requires_grad ? a->grad->strides : NULL, a->shape, a->ndim,
-          num_elements);
+          (const float *)output->grad->data, output->grad->strides, (const float *)a->data,
+          a->strides, a->requires_grad ? (float *)a->grad->data : NULL,
+          a->requires_grad ? a->grad->strides : NULL, a->shape, a->ndim, num_elements);
       break;
     default:
       break;

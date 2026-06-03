@@ -5,8 +5,7 @@
 #include <float.h>
 #include <stdarg.h>
 
-template <u64 block_size>
-__device__ void warp_reduce(volatile float *sdata, u64 tid) {
+template <u64 block_size> __device__ void warp_reduce(volatile float *sdata, u64 tid) {
   if (block_size >= 64)
     sdata[tid] = fminf(sdata[tid], sdata[tid + 32]);
   if (block_size >= 32)
@@ -22,8 +21,7 @@ __device__ void warp_reduce(volatile float *sdata, u64 tid) {
 }
 
 template <u64 block_size>
-__global__ void min_cuda_forward_float_contig_kernel(const float *a, float *c,
-                                                     u64 num_elements) {
+__global__ void min_cuda_forward_float_contig_kernel(const float *a, float *c, u64 num_elements) {
   extern __shared__ float sdata[];
   u64 tid = threadIdx.x;
   u64 i = (blockDim.x * 2) * blockIdx.x + threadIdx.x;
@@ -53,10 +51,9 @@ __global__ void min_cuda_forward_float_contig_kernel(const float *a, float *c,
 }
 
 template <u64 block_size>
-__global__ void
-min_cuda_forward_float_noncontig_kernel(const float *a_data, const u64 *a_shape,
-                                        const u64 *a_strides, u64 a_ndim,
-                                        float *c, u64 num_elements) {
+__global__ void min_cuda_forward_float_noncontig_kernel(const float *a_data, const u64 *a_shape,
+                                                        const u64 *a_strides, u64 a_ndim, float *c,
+                                                        u64 num_elements) {
   extern __shared__ float sdata[];
   u64 tid = threadIdx.x;
   u64 i = (blockDim.x * 2) * blockIdx.x + threadIdx.x;
@@ -76,10 +73,8 @@ min_cuda_forward_float_noncontig_kernel(const float *a_data, const u64 *a_shape,
 
     float val2 = FLT_MAX;
     if (i + blockDim.x < num_elements) {
-      cuda_linear_to_coords(i + blockDim.x, a_shape, a_ndim,
-                            coords_i_plus_blockdim);
-      u64 offset_i_plus_blockdim =
-          cuda_get_offset(coords_i_plus_blockdim, a_strides, a_ndim);
+      cuda_linear_to_coords(i + blockDim.x, a_shape, a_ndim, coords_i_plus_blockdim);
+      u64 offset_i_plus_blockdim = cuda_get_offset(coords_i_plus_blockdim, a_strides, a_ndim);
       val2 = a_data[offset_i_plus_blockdim];
     }
     min_val = fminf(min_val, fminf(val1, val2));
@@ -101,10 +96,11 @@ min_cuda_forward_float_noncontig_kernel(const float *a_data, const u64 *a_shape,
     c[0] = sdata[0];
 }
 
-__global__ void min_cuda_forward_float_dim_contig_kernel(
-    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim,
-    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim,
-    u64 dim, u64 reduce_size, bool keepdim) {
+__global__ void min_cuda_forward_float_dim_contig_kernel(const float *a_data, const u64 *a_shape,
+                                                         const u64 *a_strides, u64 a_ndim,
+                                                         float *c_data, const u64 *c_shape,
+                                                         const u64 *c_strides, u64 c_ndim, u64 dim,
+                                                         u64 reduce_size, bool keepdim) {
   u64 output_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (output_idx >= cuda_numel_from_shape(c_shape, c_ndim)) {
     return;
@@ -131,9 +127,8 @@ __global__ void min_cuda_forward_float_dim_contig_kernel(
 }
 
 __global__ void min_cuda_forward_float_dim_noncontig_kernel(
-    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim,
-    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim,
-    u64 dim, u64 reduce_size, bool keepdim) {
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim, float *c_data,
+    const u64 *c_shape, const u64 *c_strides, u64 c_ndim, u64 dim, u64 reduce_size, bool keepdim) {
   u64 output_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (output_idx >= cuda_numel_from_shape(c_shape, c_ndim)) {
     return;
@@ -160,9 +155,8 @@ __global__ void min_cuda_forward_float_dim_noncontig_kernel(
 }
 
 __global__ void min_cuda_backward_float_dim_contig_kernel(
-    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides,
-    u64 dc_ndim, float *da_data, const float *a_data_fwd,
-    const float *c_data_fwd, const u64 *da_shape, const u64 *da_strides,
+    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides, u64 dc_ndim, float *da_data,
+    const float *a_data_fwd, const float *c_data_fwd, const u64 *da_shape, const u64 *da_strides,
     u64 da_ndim, u64 dim, u64 reduce_size, bool keepdim) {
   u64 input_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (input_idx >= cuda_numel_from_shape(da_shape, da_ndim)) {
@@ -194,9 +188,8 @@ __global__ void min_cuda_backward_float_dim_contig_kernel(
 }
 
 __global__ void min_cuda_backward_float_dim_noncontig_kernel(
-    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides,
-    u64 dc_ndim, float *da_data, const float *a_data_fwd,
-    const float *c_data_fwd, const u64 *da_shape, const u64 *da_strides,
+    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides, u64 dc_ndim, float *da_data,
+    const float *a_data_fwd, const float *c_data_fwd, const u64 *da_shape, const u64 *da_strides,
     u64 da_ndim, u64 dim, u64 reduce_size, bool keepdim) {
   u64 input_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (input_idx >= cuda_numel_from_shape(da_shape, da_ndim)) {
@@ -227,11 +220,9 @@ __global__ void min_cuda_backward_float_dim_noncontig_kernel(
   }
 }
 
-__global__ void min_cuda_backward_float_contig_kernel(const float *dc,
-                                                      float *da,
+__global__ void min_cuda_backward_float_contig_kernel(const float *dc, float *da,
                                                       const float *a_data_fwd,
-                                                      const float *c_data_fwd,
-                                                      u64 num_elements) {
+                                                      const float *c_data_fwd, u64 num_elements) {
   u64 idx = blockDim.x * blockIdx.x + threadIdx.x;
   u64 strides = blockDim.x * gridDim.x;
   float grad = dc[0];
@@ -244,10 +235,11 @@ __global__ void min_cuda_backward_float_contig_kernel(const float *dc,
   }
 }
 
-__global__ void min_cuda_backward_float_noncontig_kernel(
-    const float *dc, float *da, const float *a_data_fwd,
-    const float *c_data_fwd, u64 *a_shape, u64 *a_strides, u64 a_ndim,
-    u64 num_elements) {
+__global__ void min_cuda_backward_float_noncontig_kernel(const float *dc, float *da,
+                                                         const float *a_data_fwd,
+                                                         const float *c_data_fwd, u64 *a_shape,
+                                                         u64 *a_strides, u64 a_ndim,
+                                                         u64 num_elements) {
   u64 idx = blockDim.x * blockIdx.x + threadIdx.x;
   u64 strides = blockDim.x * gridDim.x;
 
@@ -264,29 +256,25 @@ __global__ void min_cuda_backward_float_noncontig_kernel(
   }
 }
 
-void min_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void min_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   float *c_data = (float *)output->data;
 
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (dim == MAX_NDIM + 1) {
     u64 num_elements = numel(a);
     const u64 block_size = 256;
-    const u64 grid_size =
-        (num_elements + (block_size * 2) - 1) / (block_size * 2);
+    const u64 grid_size = (num_elements + (block_size * 2) - 1) / (block_size * 2);
     const u64 shared_mem_size = block_size * sizeof(float);
 
     if (is_contiguous(a)) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_forward_float_contig_kernel<block_size>
-            <<<grid_size, block_size, shared_mem_size>>>((const float *)a->data,
-                                                         c_data, num_elements);
+            <<<grid_size, block_size, shared_mem_size>>>((const float *)a->data, c_data,
+                                                         num_elements);
         break;
       default:
         break;
@@ -295,9 +283,8 @@ void min_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_forward_float_noncontig_kernel<block_size>
-            <<<grid_size, block_size, shared_mem_size>>>(
-                (const float *)a->data, a->shape, a->strides, a->ndim, c_data,
-                num_elements);
+            <<<grid_size, block_size, shared_mem_size>>>((const float *)a->data, a->shape,
+                                                         a->strides, a->ndim, c_data, num_elements);
         break;
       default:
         break;
@@ -314,9 +301,8 @@ void min_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_forward_float_dim_contig_kernel<<<grid_size, block_size>>>(
-            (const float *)a->data, a->shape, a->strides, a->ndim, c_data,
-            output->shape, output->strides, output->ndim, dim, reduce_size,
-            keepdim);
+            (const float *)a->data, a->shape, a->strides, a->ndim, c_data, output->shape,
+            output->strides, output->ndim, dim, reduce_size, keepdim);
         break;
       default:
         break;
@@ -325,9 +311,8 @@ void min_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_forward_float_dim_noncontig_kernel<<<grid_size, block_size>>>(
-            (const float *)a->data, a->shape, a->strides, a->ndim, c_data,
-            output->shape, output->strides, output->ndim, dim, reduce_size,
-            keepdim);
+            (const float *)a->data, a->shape, a->strides, a->ndim, c_data, output->shape,
+            output->strides, output->ndim, dim, reduce_size, keepdim);
         break;
       default:
         break;
@@ -336,15 +321,12 @@ void min_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void min_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void min_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   Tensor *a = inputs[0];
   const float *dc_data = (const float *)output->grad->data;
   float *da_data = (float *)a->grad->data;
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   const float *a_data_fwd = (const float *)a->data;
   const float *c_data_fwd = (const float *)output->data;
@@ -367,8 +349,7 @@ void min_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_backward_float_noncontig_kernel<<<grid_size, block_size>>>(
-            dc_data, da_data, a_data_fwd, c_data_fwd, a->shape, a->strides,
-            a->ndim, num_elements);
+            dc_data, da_data, a_data_fwd, c_data_fwd, a->shape, a->strides, a->ndim, num_elements);
         break;
       default:
         break;
@@ -385,9 +366,8 @@ void min_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_backward_float_dim_contig_kernel<<<grid_size, block_size>>>(
-            dc_data, output->shape, output->strides, output->ndim, da_data,
-            a_data_fwd, c_data_fwd, a->shape, a->strides, a->ndim, dim,
-            reduce_size, keepdim);
+            dc_data, output->shape, output->strides, output->ndim, da_data, a_data_fwd, c_data_fwd,
+            a->shape, a->strides, a->ndim, dim, reduce_size, keepdim);
         break;
       default:
         break;
@@ -396,9 +376,8 @@ void min_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         min_cuda_backward_float_dim_noncontig_kernel<<<grid_size, block_size>>>(
-            dc_data, output->shape, output->strides, output->ndim, da_data,
-            a_data_fwd, c_data_fwd, a->shape, a->strides, a->ndim, dim,
-            reduce_size, keepdim);
+            dc_data, output->shape, output->strides, output->ndim, da_data, a_data_fwd, c_data_fwd,
+            a->shape, a->strides, a->ndim, dim, reduce_size, keepdim);
         break;
       default:
         break;

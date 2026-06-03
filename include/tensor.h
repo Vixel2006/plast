@@ -41,18 +41,16 @@ bool is_contiguous(const Tensor *t);
 
 u64 numel(const Tensor *t);
 
-Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[],
-                           u64 ndim, u64 *strides, DTYPE dtype,
-                           bool requires_grad, struct Node *creator,
+Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[], u64 ndim,
+                           u64 *strides, DTYPE dtype, bool requires_grad, struct Node *creator,
                            DEVICE device);
 
 void zeros(Tensor *t, u64 num_elements);
 void ones(Tensor *t, u64 num_elements);
 void set_ones_grad(Tensor *t);
 
-Tensor *init(Arena *meta_arena, Arena *data_arena, DEVICE device, DTYPE dtype,
-             u64 shape[], u64 ndim, bool requires_grad,
-             void (*init_fn)(Tensor *t, u64 num_elements));
+Tensor *init(Arena *meta_arena, Arena *data_arena, DEVICE device, DTYPE dtype, u64 shape[],
+             u64 ndim, bool requires_grad, void (*init_fn)(Tensor *t, u64 num_elements));
 
 // Generic tensor creation and freeing functions
 Tensor *tensor_create(u64 *shape, u64 ndim, DTYPE dtype, DEVICE device);

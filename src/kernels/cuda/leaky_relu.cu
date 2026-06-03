@@ -3,20 +3,16 @@
 #include <cuda_runtime.h>
 #include <stdarg.h>
 
-__global__ void leaky_relu_cuda_forward_float_contig_kernel(const float *a,
-                                                            float *c,
-                                                            u64 num_elements,
-                                                            float alpha) {
+__global__ void leaky_relu_cuda_forward_float_contig_kernel(const float *a, float *c,
+                                                            u64 num_elements, float alpha) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     c[idx] = a[idx] > 0 ? a[idx] : a[idx] * alpha;
   }
 }
 
-__global__ void leaky_relu_cuda_backward_float_contig_kernel(const float *dout,
-                                                             const float *a,
-                                                             float *da,
-                                                             u64 num_elements,
+__global__ void leaky_relu_cuda_backward_float_contig_kernel(const float *dout, const float *a,
+                                                             float *da, u64 num_elements,
                                                              float alpha) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
@@ -27,25 +23,25 @@ __global__ void leaky_relu_cuda_backward_float_contig_kernel(const float *dout,
   }
 }
 
-__global__ void leaky_relu_cuda_forward_float_non_contig_kernel(
-    const float *a_data, const u64 *a_strides, float *c_data,
-    const u64 *c_strides, const u64 *shape, u64 ndim, u64 num_elements,
-    float alpha) {
+__global__ void leaky_relu_cuda_forward_float_non_contig_kernel(const float *a_data,
+                                                                const u64 *a_strides, float *c_data,
+                                                                const u64 *c_strides,
+                                                                const u64 *shape, u64 ndim,
+                                                                u64 num_elements, float alpha) {
   u64 linear_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (linear_idx < num_elements) {
     u64 coords[MAX_NDIM];
     cuda_linear_to_coords(linear_idx, shape, ndim, coords);
     u64 a_offset = cuda_get_offset(coords, a_strides, ndim);
     u64 c_offset = cuda_get_offset(coords, c_strides, ndim);
-    c_data[c_offset] =
-        a_data[a_offset] > 0 ? a_data[a_offset] : a_data[a_offset] * alpha;
+    c_data[c_offset] = a_data[a_offset] > 0 ? a_data[a_offset] : a_data[a_offset] * alpha;
   }
 }
 
 __global__ void leaky_relu_cuda_backward_float_non_contig_kernel(
-    const float *dout_data, const u64 *dout_strides, const float *a_data,
-    const u64 *a_strides, float *da_data, const u64 *da_strides,
-    const u64 *shape, u64 ndim, u64 num_elements, float alpha) {
+    const float *dout_data, const u64 *dout_strides, const float *a_data, const u64 *a_strides,
+    float *da_data, const u64 *da_strides, const u64 *shape, u64 ndim, u64 num_elements,
+    float alpha) {
   u64 linear_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (linear_idx < num_elements) {
     u64 coords[MAX_NDIM];
@@ -61,13 +57,9 @@ __global__ void leaky_relu_cuda_backward_float_non_contig_kernel(
   }
 }
 
-void leaky_relu_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void leaky_relu_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-  va_list args;
-  va_start(args, output);
-  float alpha = (float)va_arg(args, double);
-  va_end(args);
-
+  float alpha = params.fval;
   u64 num_elements = numel(a);
 
   int block_size = 256;
@@ -85,10 +77,9 @@ void leaky_relu_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   } else {
     switch (a->dtype) {
     case FLOAT32:
-      leaky_relu_cuda_forward_float_non_contig_kernel<<<grid_size,
-                                                        block_size>>>(
-          (const float *)a->data, a->strides, (float *)output->data,
-          output->strides, a->shape, a->ndim, num_elements, alpha);
+      leaky_relu_cuda_forward_float_non_contig_kernel<<<grid_size, block_size>>>(
+          (const float *)a->data, a->strides, (float *)output->data, output->strides, a->shape,
+          a->ndim, num_elements, alpha);
       break;
     default:
       break;
@@ -97,13 +88,9 @@ void leaky_relu_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void leaky_relu_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void leaky_relu_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-  va_list args;
-  va_start(args, output);
-  float alpha = (float)va_arg(args, double);
-  va_end(args);
-
+  float alpha = params.fval;
   u64 num_elements = numel(a);
 
   int block_size = 256;
@@ -114,8 +101,7 @@ void leaky_relu_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
     case FLOAT32:
       leaky_relu_cuda_backward_float_contig_kernel<<<grid_size, block_size>>>(
           (const float *)output->grad->data, (const float *)a->data,
-          a->requires_grad ? (float *)a->grad->data : NULL, num_elements,
-          alpha);
+          a->requires_grad ? (float *)a->grad->data : NULL, num_elements, alpha);
       break;
     default:
       break;
@@ -123,13 +109,10 @@ void leaky_relu_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
   } else {
     switch (a->dtype) {
     case FLOAT32:
-      leaky_relu_cuda_backward_float_non_contig_kernel<<<grid_size,
-                                                         block_size>>>(
-          (const float *)output->grad->data, output->grad->strides,
-          (const float *)a->data, a->strides,
-          a->requires_grad ? (float *)a->grad->data : NULL,
-          a->requires_grad ? a->grad->strides : NULL, a->shape, a->ndim,
-          num_elements, alpha);
+      leaky_relu_cuda_backward_float_non_contig_kernel<<<grid_size, block_size>>>(
+          (const float *)output->grad->data, output->grad->strides, (const float *)a->data,
+          a->strides, a->requires_grad ? (float *)a->grad->data : NULL,
+          a->requires_grad ? a->grad->strides : NULL, a->shape, a->ndim, num_elements, alpha);
       break;
     default:
       break;

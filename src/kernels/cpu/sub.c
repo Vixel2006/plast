@@ -3,8 +3,8 @@
 #include "tensor.h"
 #include <omp.h>
 
-void sub_cpu_forward_float_contig_kernel(const float *a, const float *b,
-                                         float *c, u64 num_elements) {
+void sub_cpu_forward_float_contig_kernel(const float *a, const float *b, float *c,
+                                         u64 num_elements) {
   u64 i = 0;
   for (; i + SIMD_WIDTH - 1 < num_elements; i += SIMD_WIDTH) {
     __m256 x = _mm256_loadu_ps(a + i);
@@ -18,10 +18,10 @@ void sub_cpu_forward_float_contig_kernel(const float *a, const float *b,
   }
 }
 
-void sub_cpu_forward_float_non_contig_kernel(
-    const float *a_data, const u64 *a_strides, const float *b_data,
-    const u64 *b_strides, float *c_data, const u64 *c_strides, const u64 *shape,
-    u64 ndim, u64 num_elements) {
+void sub_cpu_forward_float_non_contig_kernel(const float *a_data, const u64 *a_strides,
+                                             const float *b_data, const u64 *b_strides,
+                                             float *c_data, const u64 *c_strides, const u64 *shape,
+                                             u64 ndim, u64 num_elements) {
   u64 coords[MAX_NDIM];
 #pragma omp parallel for private(coords)
   for (u64 i = 0; i < num_elements; ++i) {
@@ -33,8 +33,8 @@ void sub_cpu_forward_float_non_contig_kernel(
   }
 }
 
-void sub_cpu_backward_float_contig_kernel(const float *dout, float *da,
-                                          float *db, u64 num_elements) {
+void sub_cpu_backward_float_contig_kernel(const float *dout, float *da, float *db,
+                                          u64 num_elements) {
   u64 i = 0;
   for (; i + SIMD_WIDTH - 1 < num_elements; i += SIMD_WIDTH) {
     __m256 out_grad = _mm256_loadu_ps(dout + i);
@@ -58,10 +58,10 @@ void sub_cpu_backward_float_contig_kernel(const float *dout, float *da,
   }
 }
 
-void sub_cpu_backward_float_non_contig_kernel(
-    const float *dout_data, const u64 *dout_strides, float *da_data,
-    const u64 *da_strides, float *db_data, const u64 *db_strides,
-    const u64 *shape, u64 ndim, u64 num_elements) {
+void sub_cpu_backward_float_non_contig_kernel(const float *dout_data, const u64 *dout_strides,
+                                              float *da_data, const u64 *da_strides, float *db_data,
+                                              const u64 *db_strides, const u64 *shape, u64 ndim,
+                                              u64 num_elements) {
   u64 coords[MAX_NDIM];
 #pragma omp parallel for private(coords)
   for (u64 i = 0; i < num_elements; ++i) {
@@ -77,7 +77,7 @@ void sub_cpu_backward_float_non_contig_kernel(
   }
 }
 
-void sub_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void sub_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
 
@@ -86,8 +86,7 @@ void sub_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   if (is_contiguous(a) && is_contiguous(b) && is_contiguous(output)) {
     switch (a->dtype) {
     case FLOAT32:
-      sub_cpu_forward_float_contig_kernel((const float *)a->data,
-                                          (const float *)b->data,
+      sub_cpu_forward_float_contig_kernel((const float *)a->data, (const float *)b->data,
                                           (float *)output->data, num_elements);
       break;
     default:
@@ -97,9 +96,8 @@ void sub_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
     switch (a->dtype) {
     case FLOAT32:
       sub_cpu_forward_float_non_contig_kernel(
-          (const float *)a->data, a->strides, (const float *)b->data,
-          b->strides, (float *)output->data, output->strides, a->shape, a->ndim,
-          num_elements);
+          (const float *)a->data, a->strides, (const float *)b->data, b->strides,
+          (float *)output->data, output->strides, a->shape, a->ndim, num_elements);
       break;
     default:
       break;
@@ -107,7 +105,7 @@ void sub_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void sub_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void sub_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
 
@@ -117,8 +115,7 @@ void sub_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
     switch (a->dtype) {
     case FLOAT32:
       sub_cpu_backward_float_contig_kernel(
-          (const float *)output->grad->data,
-          a->requires_grad ? (float *)a->grad->data : NULL,
+          (const float *)output->grad->data, a->requires_grad ? (float *)a->grad->data : NULL,
           b->requires_grad ? (float *)b->grad->data : NULL, num_elements);
       break;
     default:
@@ -132,8 +129,7 @@ void sub_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
           a->requires_grad ? (float *)a->grad->data : NULL,
           a->requires_grad ? a->grad->strides : NULL,
           b->requires_grad ? (float *)b->grad->data : NULL,
-          b->requires_grad ? b->grad->strides : NULL, a->shape, a->ndim,
-          num_elements);
+          b->requires_grad ? b->grad->strides : NULL, a->shape, a->ndim, num_elements);
       break;
     default:
       break;

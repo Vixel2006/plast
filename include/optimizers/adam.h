@@ -14,8 +14,8 @@ typedef struct {
   Arena *optimizer_arena;
 } Adam;
 
-Adam alloc_adam(Arena *optimizer_arena, Arena *data_arena, float lr,
-                float beta1, float beta2, float epsilon);
+Adam alloc_adam(Arena *optimizer_arena, Arena *data_arena, float lr, float beta1, float beta2,
+                float epsilon);
 
 void adam_step_cpu(Adam *optimizer, Tensor **parameters, int num_parameters);
 

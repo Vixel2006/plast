@@ -3,8 +3,7 @@
 #include <cuda_runtime.h>
 #include <stdarg.h>
 
-__global__ void div_cuda_forward_float_contig_kernel(const float *a,
-                                                     const float *b, float *c,
+__global__ void div_cuda_forward_float_contig_kernel(const float *a, const float *b, float *c,
                                                      u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
@@ -12,10 +11,8 @@ __global__ void div_cuda_forward_float_contig_kernel(const float *a,
   }
 }
 
-__global__ void div_cuda_backward_float_contig_kernel(const float *dout,
-                                                      const float *a,
-                                                      const float *b, float *da,
-                                                      float *db,
+__global__ void div_cuda_backward_float_contig_kernel(const float *dout, const float *a,
+                                                      const float *b, float *da, float *db,
                                                       u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
@@ -27,10 +24,9 @@ __global__ void div_cuda_backward_float_contig_kernel(const float *dout,
 }
 
 __global__ void div_cuda_forward_float_non_contig_kernel(
-    const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim,
-    const float *b_data, const u64 *b_strides, const u64 *b_shape, u64 b_ndim,
-    float *c_data, const u64 *c_strides, const u64 *c_shape, u64 c_ndim,
-    u64 num_elements) {
+    const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim, const float *b_data,
+    const u64 *b_strides, const u64 *b_shape, u64 b_ndim, float *c_data, const u64 *c_strides,
+    const u64 *c_shape, u64 c_ndim, u64 num_elements) {
   u64 linear_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (linear_idx < num_elements) {
     u64 coords[MAX_NDIM];
@@ -44,11 +40,10 @@ __global__ void div_cuda_forward_float_non_contig_kernel(
 
 __global__ void div_cuda_backward_float_non_contig_kernel(
     const float *dout_data, const u64 *dout_strides, const u64 *dout_shape, u64 dout_ndim,
-    const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim,
-    const float *b_data, const u64 *b_strides, const u64 *b_shape, u64 b_ndim,
-    float *da_data, const u64 *da_strides, const u64 *da_shape, u64 da_ndim,
-    float *db_data, const u64 *db_strides, const u64 *db_shape, u64 db_ndim,
-    u64 num_elements) {
+    const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim, const float *b_data,
+    const u64 *b_strides, const u64 *b_shape, u64 b_ndim, float *da_data, const u64 *da_strides,
+    const u64 *da_shape, u64 da_ndim, float *db_data, const u64 *db_strides, const u64 *db_shape,
+    u64 db_ndim, u64 num_elements) {
   u64 linear_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (linear_idx < num_elements) {
     u64 coords[MAX_NDIM];
@@ -72,7 +67,7 @@ __global__ void div_cuda_backward_float_non_contig_kernel(
   }
 }
 
-void div_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void div_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
   u64 num_elements = numel(output);
@@ -80,8 +75,8 @@ void div_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   int block_size = 256;
   int grid_size = (num_elements + block_size - 1) / block_size;
 
-  if (is_contiguous(a) && is_contiguous(b) && is_contiguous(output) &&
-      a->ndim == b->ndim && a->ndim == output->ndim) {
+  if (is_contiguous(a) && is_contiguous(b) && is_contiguous(output) && a->ndim == b->ndim &&
+      a->ndim == output->ndim) {
     // Check if shapes match exactly (no broadcasting)
     bool shapes_match = true;
     for (u64 i = 0; i < a->ndim; ++i) {
@@ -95,8 +90,7 @@ void div_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
       switch (a->dtype) {
       case FLOAT32:
         div_cuda_forward_float_contig_kernel<<<grid_size, block_size>>>(
-            (const float *)a->data, (const float *)b->data, (float *)output->data,
-            num_elements);
+            (const float *)a->data, (const float *)b->data, (float *)output->data, num_elements);
         break;
       default:
         break;
@@ -109,9 +103,8 @@ void div_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   switch (a->dtype) {
   case FLOAT32:
     div_cuda_forward_float_non_contig_kernel<<<grid_size, block_size>>>(
-        (const float *)a->data, a->strides, a->shape, a->ndim,
-        (const float *)b->data, b->strides, b->shape, b->ndim,
-        (float *)output->data, output->strides, output->shape, output->ndim,
+        (const float *)a->data, a->strides, a->shape, a->ndim, (const float *)b->data, b->strides,
+        b->shape, b->ndim, (float *)output->data, output->strides, output->shape, output->ndim,
         num_elements);
     break;
   default:
@@ -120,7 +113,7 @@ void div_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void div_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void div_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
   u64 num_elements = numel(output);
@@ -128,19 +121,21 @@ void div_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
   int block_size = 256;
   int grid_size = (num_elements + block_size - 1) / block_size;
 
-  // For simplicity and correctness with broadcasting (atomicAdd), 
+  // For simplicity and correctness with broadcasting (atomicAdd),
   // we use the non-contiguous kernel as the primary path for now.
-  // Many real-world ops use specialized kernels for power-of-two broadcasting, etc.
-  
+  // Many real-world ops use specialized kernels for power-of-two broadcasting,
+  // etc.
+
   switch (a->dtype) {
   case FLOAT32:
     div_cuda_backward_float_non_contig_kernel<<<grid_size, block_size>>>(
-        (const float *)output->grad->data, output->grad->strides, output->grad->shape, output->grad->ndim,
-        (const float *)a->data, a->strides, a->shape, a->ndim,
+        (const float *)output->grad->data, output->grad->strides, output->grad->shape,
+        output->grad->ndim, (const float *)a->data, a->strides, a->shape, a->ndim,
         (const float *)b->data, b->strides, b->shape, b->ndim,
-        a->requires_grad ? (float *)a->grad->data : NULL, a->grad ? a->grad->strides : NULL, a->grad ? a->grad->shape : NULL, a->grad ? a->grad->ndim : 0,
-        b->requires_grad ? (float *)b->grad->data : NULL, b->grad ? b->grad->strides : NULL, b->grad ? b->grad->shape : NULL, b->grad ? b->grad->ndim : 0,
-        num_elements);
+        a->requires_grad ? (float *)a->grad->data : NULL, a->grad ? a->grad->strides : NULL,
+        a->grad ? a->grad->shape : NULL, a->grad ? a->grad->ndim : 0,
+        b->requires_grad ? (float *)b->grad->data : NULL, b->grad ? b->grad->strides : NULL,
+        b->grad ? b->grad->shape : NULL, b->grad ? b->grad->ndim : 0, num_elements);
     break;
   default:
     break;
