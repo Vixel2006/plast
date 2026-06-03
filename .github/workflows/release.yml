@@ -31,14 +31,8 @@ jobs:
       - name: Run tests
         run: uv run pytest tests/ -v --timeout=120 -m "not slow and not cuda"
 
-      - name: Build source distribution and wheel
-        run: uv build
-
-      - name: Repair wheel for manylinux compliance
-        run: |
-          uv pip install auditwheel
-          uv run auditwheel repair dist/*.whl -w dist/ --plat manylinux_2_31_x86_64
-          rm -f dist/*linux_x86_64.whl
+      - name: Build source distribution
+        run: uv build --sdist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
