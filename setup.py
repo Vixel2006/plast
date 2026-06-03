@@ -156,5 +156,4 @@ setup(
         )
     ],
     cmdclass={"build_ext": custom_build_ext},
-    install_requires=["numpy"],
 )
