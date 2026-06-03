@@ -21,7 +21,7 @@ jobs:
       - name: Install project
         run: |
           uv venv --python 3.12
-          uv pip install -e ".[test]"
+          uv pip install -e .
 
       - name: Run tests (CPU)
         run: uv run pytest tests/ -v --timeout=120 -m "not slow and not cuda"
