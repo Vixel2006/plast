@@ -1,5 +1,0 @@
-numpy
-
-[test]
-pytest
-numpy
