@@ -24,7 +24,7 @@ jobs:
           uv pip install -e ".[test]"
 
       - name: Run tests (CPU)
-        run: uv run pytest tests/ -v --timeout=120 -m "not slow"
+        run: uv run pytest tests/ -v --timeout=120 -m "not slow and not cuda"
 
   test-gpu:
     runs-on: [self-hosted, linux, x64, gpu]

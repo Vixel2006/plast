@@ -28,10 +28,15 @@ class TestAutogradBasics:
         grad_x_first = x.grad.numpy().copy()
 
         plast.reset_transient_arenas()
-        from plast.plast_core import zero_grad_cpu, zero_grad_cuda, Device
+        from plast.plast_core import zero_grad_cpu, Device
+        try:
+            from plast.plast_core import zero_grad_cuda
+        except ImportError:
+            zero_grad_cuda = None
         for p in [x, y]:
             if p.device == Device.CUDA:
-                zero_grad_cuda(p)
+                if zero_grad_cuda is not None:
+                    zero_grad_cuda(p)
             else:
                 zero_grad_cpu(p)
 
