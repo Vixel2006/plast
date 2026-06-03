@@ -9,11 +9,10 @@ typedef struct Node {
   int num_inputs;
   bool visited;
   bool on_stack;
-  u64 dim;
-  u64 keepdim;
+  KernelParams params;
 } Node;
 
 Node *arena_node_alloc(Arena *a, Tensor **inputs, int num_inputs,
-                       Tensor *output, Op op, u64 dim, u64 keepdim);
+                       Tensor *output, Op op, KernelParams params);
 void execute_forward(Node *n);
 void execute_backward(Node *n);

@@ -31,15 +31,15 @@ void sum_cpu_backward_float_dim_kernel(const float *a_data,
                                        float *da_data, const u64 *da_strides,
                                        u64 dim, bool keepdim);
 
-void sum_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void sum_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void sum_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void sum_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void sum_cuda_forward(const Tensor **inputs, Tensor *output, ...);
-void sum_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+void sum_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void sum_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

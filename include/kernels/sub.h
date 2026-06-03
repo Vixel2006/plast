@@ -20,15 +20,15 @@ void sub_cpu_backward_float_non_contig_kernel(
     const u64 *da_strides, float *db_data, const u64 *db_strides,
     const u64 *shape, u64 ndim, u64 num_elements);
 
-void sub_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void sub_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void sub_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void sub_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void sub_cuda_forward(const Tensor **inputs, Tensor *output, ...);
-void sub_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+void sub_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void sub_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

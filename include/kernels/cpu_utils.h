@@ -36,8 +36,6 @@ void get_broadcast_shape(const u64 *shape1, u64 ndim1, const u64 *shape2,
                          u64 ndim2, u64 *broadcast_shape,
                          u64 *broadcast_ndim_ptr);
 
-void pack_tensor_to_contiguous_buffer(const Tensor *src, void *dst);
-
 void compute_reduction_shape_strides(const u64 *old_shape, u64 old_ndim,
                                      u64 dim, bool keepdim,
                                      u64 *new_shape, u64 *new_ndim_ptr,

@@ -27,14 +27,13 @@ def broadcast_shape(shape1, shape2):
             raise ValueError(f"Cannot broadcast shapes {shape1} and {shape2}")
     return out_shape[::-1]
 
-def _run_op(inputs, op_type, out_shape, dim=0, keepdim=0, requires_grad=None):
+def _run_op(inputs, op_type, out_shape, dim=0, keepdim=0, fval=0.0, requires_grad=None):
     meta, data = get_arenas()
     device = inputs[0].device
-    # Check requires_grad
     if requires_grad is None:
         requires_grad = any(t.requires_grad for t in inputs)
     out = tensor_init(meta, data, device, DType.Float32, out_shape, requires_grad)
-    create_node(meta, inputs, out, op_type, dim, keepdim)
+    create_node(meta, inputs, out, op_type, dim, keepdim, fval)
     return out
 
 # Element-wise operations

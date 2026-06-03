@@ -113,7 +113,7 @@ void div_cpu_backward_float_kernel(
     }
 }
 
-void div_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void div_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
 
@@ -129,7 +129,7 @@ void div_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void div_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void div_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
     const Tensor *a = inputs[0];
     const Tensor *b = inputs[1];
 

@@ -246,15 +246,12 @@ sum_cuda_backward_float_noncontig_kernel(const float *dc, float *da,
   }
 }
 
-void sum_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void sum_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   float *c_data = (float *)output->data;
 
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (dim == MAX_NDIM + 1) {
     u64 num_elements = numel(a);
@@ -319,16 +316,13 @@ void sum_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void sum_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void sum_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   Tensor *a = inputs[0];
   const float *dc_data = (const float *)output->grad->data;
   float *da_data = (float *)a->grad->data;
 
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (dim == MAX_NDIM + 1) {
     u64 num_elements = numel(a);

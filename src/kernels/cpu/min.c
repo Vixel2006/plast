@@ -108,14 +108,10 @@ void min_cpu_forward_float_dim_kernel(const float *a_data, const u64 *a_strides,
   }
 }
 
-void min_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void min_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int); // va_arg promotes bool to int
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (dim == MAX_NDIM + 1) {
     // Reduction over all elements
@@ -257,14 +253,10 @@ void min_cpu_backward_float_dim_kernel(const float *a_data,
   }
 }
 
-void min_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void min_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int); // va_arg promotes bool to int
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (a->requires_grad) {
     if (dim == MAX_NDIM + 1) {

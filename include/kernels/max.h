@@ -26,15 +26,15 @@ void max_cpu_backward_float_dim_kernel(const float *a_data,
                                        float *da_data, const u64 *da_strides,
                                        u64 dim, bool keepdim);
 
-void max_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void max_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void max_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void max_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void max_cuda_forward(const Tensor **inputs, Tensor *output, ...);
-void max_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+void max_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void max_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

@@ -128,16 +128,15 @@ PYBIND11_MODULE(plast_core, m) {
     // Node and Graph
     py::class_<Node>(m, "Node");
 
-    m.def("create_node", [](Arena &meta, std::vector<Tensor*> inputs, Tensor &output, OP_TYPE op_type, u64 dim, u64 keepdim) {
-        // We need to copy pointers to a buffer compatible with C Tensor**
+    m.def("create_node", [](Arena &meta, std::vector<Tensor*> inputs, Tensor &output, OP_TYPE op_type, u64 dim, u64 keepdim, float fval) {
         Tensor **input_ptrs = (Tensor **)arena_alloc(&meta, inputs.size() * sizeof(Tensor*), 8);
         for (size_t i = 0; i < inputs.size(); ++i) input_ptrs[i] = inputs[i];
-        
-        u64 final_dim = dim;
+
+        KernelParams params = {dim, keepdim, fval};
         if (op_type == CONV2D) {
-            final_dim = (u64)&meta;
+            params.dim = (u64)&meta;
         }
-        return arena_node_alloc(&meta, input_ptrs, (int)inputs.size(), &output, get_op_impl(op_type), final_dim, keepdim);
+        return arena_node_alloc(&meta, input_ptrs, (int)inputs.size(), &output, get_op_impl(op_type), params);
     }, py::return_value_policy::reference);
 
     m.def("forward", [](Tensor &t) { if (t.creator) forward(t.creator); });

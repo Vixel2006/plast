@@ -26,15 +26,15 @@ void min_cpu_backward_float_dim_kernel(const float *a_data,
                                        float *da_data, const u64 *da_strides,
                                        u64 dim, bool keepdim);
 
-void min_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void min_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void min_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void min_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void min_cuda_forward(const Tensor **inputs, Tensor *output, ...);
-void min_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+void min_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void min_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

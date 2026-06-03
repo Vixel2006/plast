@@ -49,7 +49,7 @@ __global__ void neg_cuda_backward_float_non_contig_kernel(
   }
 }
 
-void neg_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void neg_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   u64 num_elements = numel(a);
 
@@ -79,7 +79,7 @@ void neg_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void neg_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void neg_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   u64 num_elements = numel(a);
 

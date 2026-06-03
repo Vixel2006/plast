@@ -143,14 +143,10 @@ void mean_cpu_backward_float_dim_kernel(
   }
 }
 
-void mean_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void mean_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (dim == MAX_NDIM + 1) {
     u64 num_elements = numel(a);
@@ -193,14 +189,10 @@ void mean_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void mean_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void mean_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-
-  va_list args;
-  va_start(args, output);
-  u64 dim = va_arg(args, u64);
-  bool keepdim = va_arg(args, int);
-  va_end(args);
+  u64 dim = params.dim;
+  bool keepdim = params.keepdim;
 
   if (a->requires_grad) {
     if (dim == MAX_NDIM + 1) {

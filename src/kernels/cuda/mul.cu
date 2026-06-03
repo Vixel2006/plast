@@ -72,7 +72,7 @@ __global__ void mul_cuda_backward_float_non_contig_kernel(
   }
 }
 
-void mul_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void mul_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
   u64 num_elements = numel(output);
@@ -118,7 +118,7 @@ void mul_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void mul_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void mul_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
   u64 num_elements = numel(output);

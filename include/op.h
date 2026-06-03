@@ -1,36 +1,18 @@
 #pragma once
 
 #include "tensor.h"
-#include <stdarg.h>
 
-typedef void (*ForwardKernel)(const Tensor **inputs, Tensor *output, ...);
-typedef void (*BackwardKernel)(Tensor **inputs, const Tensor *output, ...);
+typedef void (*ForwardKernel)(const Tensor **inputs, Tensor *output, KernelParams params);
+typedef void (*BackwardKernel)(Tensor **inputs, const Tensor *output, KernelParams params);
 
 typedef enum OP_TYPE {
-  ADD,
-  SUB,
-  MUL,
-  DIV,
+  ADD, SUB, MUL, DIV,
   MATMUL,
   LEAKY_RELU,
-  LOG,
-  EXP,
-  ABS,
-  NEG,
-  SIN,
-  COS,
-  TAN,
-  VIEW,
-  TRANSPOSE,
-  UNSQUEEZE,
-  SQUEEZE,
-  EXPAND,
+  LOG, EXP, ABS, NEG, SIN, COS, TAN,
+  VIEW, TRANSPOSE, UNSQUEEZE, SQUEEZE, EXPAND, FLATTEN,
   BROADCAST,
-  MEAN,
-  MIN,
-  MAX,
-  SUM,
-  FLATTEN,
+  MEAN, MIN, MAX, SUM,
   CONV2D
 } OP_TYPE;
 

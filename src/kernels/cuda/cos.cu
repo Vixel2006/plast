@@ -52,7 +52,7 @@ __global__ void cos_cuda_backward_float_non_contig_kernel(
   }
 }
 
-void cos_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
+void cos_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   u64 num_elements = numel(a);
 
@@ -82,7 +82,7 @@ void cos_cuda_forward(const Tensor **inputs, Tensor *output, ...) {
   cudaDeviceSynchronize();
 }
 
-void cos_cuda_backward(Tensor **inputs, const Tensor *output, ...) {
+void cos_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   u64 num_elements = numel(a);
 

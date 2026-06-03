@@ -76,8 +76,8 @@ c_sources = [
     "src/kernels/cpu/abs.c", "src/kernels/cpu/add.c", "src/kernels/cpu/broadcast.c",
     "src/kernels/cpu/conv2d.c", "src/kernels/cpu/cos.c", "src/kernels/cpu/cpu_tensor_init.c",
     "src/kernels/cpu/cpu_utils.c", "src/kernels/cpu/div.c", "src/kernels/cpu/expand.c",
-    "src/kernels/cpu/exp.c", "src/kernels/cpu/flatten.c", "src/kernels/cpu/leaky_relu.c",
-    "src/kernels/cpu/log.c", "src/kernels/cpu/matmul.c", "src/kernels/cpu/max.c",
+    "src/kernels/cpu/exp.c", "src/kernels/cpu/flatten.c", "src/kernels/cpu/iter.c", "src/kernels/cpu/leaky_relu.c",
+    "src/kernels/cpu/log.c", "src/kernels/cpu/matmul.c", "src/kernels/cpu/pack.c", "src/kernels/cpu/max.c",
     "src/kernels/cpu/mean.c", "src/kernels/cpu/min.c", "src/kernels/cpu/mul.c",
     "src/kernels/cpu/neg.c", "src/kernels/cpu/sin.c", "src/kernels/cpu/squeeze.c",
     "src/kernels/cpu/sub.c", "src/kernels/cpu/sum.c", "src/kernels/cpu/tan.c",
@@ -89,7 +89,7 @@ c_sources = [
 
 cu_sources = [
     "src/arena_cuda.cu", "src/kernels/cuda/abs.cu", "src/kernels/cuda/add.cu",
-    "src/kernels/cuda/conv2d.cu", "src/kernels/cuda/cos.cu", "src/kernels/cuda/cuda_tensor_init.cu",
+    "src/kernels/cuda/conv2d.cu", "src/kernels/cuda/cos.cu", "src/kernels/cuda/cuda_pack.cu", "src/kernels/cuda/cuda_tensor_init.cu",
     "src/kernels/cuda/div.cu", "src/kernels/cuda/exp.cu", "src/kernels/cuda/leaky_relu.cu",
     "src/kernels/cuda/log.cu", "src/kernels/cuda/matmul.cu", "src/kernels/cuda/max.cu",
     "src/kernels/cuda/mean.cu", "src/kernels/cuda/min.cu", "src/kernels/cuda/mul.cu",

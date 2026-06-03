@@ -8,7 +8,7 @@ def relu(x):
     return leaky_relu(x, negative_slope=0.0)
 
 def leaky_relu(x, negative_slope=0.01):
-    return _run_op([x], OpType.LEAKY_RELU, list(x.shape), dim=0, keepdim=0, requires_grad=x.requires_grad)
+    return _run_op([x], OpType.LEAKY_RELU, list(x.shape), dim=0, keepdim=0, fval=negative_slope, requires_grad=x.requires_grad)
 
 def sigmoid(x):
     # sigmoid(x) = 1 / (1 + exp(-x))

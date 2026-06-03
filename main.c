@@ -119,35 +119,35 @@ int main() {
   // Define graph
   u64 h1_shape[] = {4, hidden_size};
   Tensor *h1_mm = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){X, W1}, 2, h1_mm, get_op_impl(MATMUL), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){X, W1}, 2, h1_mm, get_op_impl(MATMUL), (KernelParams){0, 0, 0.0f});
 
   Tensor *h1 = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1_mm, b1}, 2, h1, get_op_impl(ADD), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){h1_mm, b1}, 2, h1, get_op_impl(ADD), (KernelParams){0, 0, 0.0f});
 
   Tensor *h1_abs = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1}, 1, h1_abs, get_op_impl(ABS), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){h1}, 1, h1_abs, get_op_impl(ABS), (KernelParams){0, 0, 0.0f});
 
   Tensor *h1_plus_abs = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1, h1_abs}, 2, h1_plus_abs, get_op_impl(ADD), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){h1, h1_abs}, 2, h1_plus_abs, get_op_impl(ADD), (KernelParams){0, 0, 0.0f});
 
   Tensor *a1 = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1_plus_abs, two}, 2, a1, get_op_impl(DIV), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){h1_plus_abs, two}, 2, a1, get_op_impl(DIV), (KernelParams){0, 0, 0.0f});
 
   u64 logits_shape[] = {4, 1};
   Tensor *logits_mm = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){a1, W2}, 2, logits_mm, get_op_impl(MATMUL), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){a1, W2}, 2, logits_mm, get_op_impl(MATMUL), (KernelParams){0, 0, 0.0f});
 
   Tensor *logits = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){logits_mm, b2}, 2, logits, get_op_impl(ADD), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){logits_mm, b2}, 2, logits, get_op_impl(ADD), (KernelParams){0, 0, 0.0f});
 
   Tensor *diff = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){logits, Y}, 2, diff, get_op_impl(SUB), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){logits, Y}, 2, diff, get_op_impl(SUB), (KernelParams){0, 0, 0.0f});
 
   Tensor *sq_diff = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){diff, diff}, 2, sq_diff, get_op_impl(MUL), 0, false);
+  arena_node_alloc(&a, (Tensor *[]){diff, diff}, 2, sq_diff, get_op_impl(MUL), (KernelParams){0, 0, 0.0f});
 
   Tensor *loss = init(&a, &ac, device, FLOAT32, (u64[]){1}, 1, true, NULL);
-  Node *n_loss = arena_node_alloc(&a, (Tensor *[]){sq_diff}, 1, loss, get_op_impl(MEAN), MAX_NDIM + 1, false);
+  Node *n_loss = arena_node_alloc(&a, (Tensor *[]){sq_diff}, 1, loss, get_op_impl(MEAN), (KernelParams){MAX_NDIM + 1, 0, 0.0f});
 
   SGD optimizer = arena_alloc_sgd(0.01f);
   Tensor *params[] = {W1, b1, W2, b2};

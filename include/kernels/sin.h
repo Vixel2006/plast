@@ -19,15 +19,15 @@ void sin_cpu_backward_float_non_contig_kernel(
     const u64 *a_strides, float *da_data, const u64 *da_strides,
     const u64 *shape, u64 ndim, u64 num_elements);
 
-void sin_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void sin_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void sin_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void sin_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void sin_cuda_forward(const Tensor **inputs, Tensor *output, ...);
-void sin_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+void sin_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void sin_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

@@ -97,12 +97,9 @@ void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size,
   }
 }
 
-void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
-  va_list args;
-  va_start(args, output);
-  Arena *a = va_arg(args, Arena *);
-  u64 stride = va_arg(args, u64);
-  va_end(args);
+void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
+  Arena *a = (Arena *)params.dim;
+  u64 stride = params.keepdim;
 
   const Tensor *a_input = inputs[0]; // Input image
   const Tensor *kernel = inputs[1]; // Convolution kernel
@@ -114,7 +111,7 @@ void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   Op flatten_op = get_op_impl(FLATTEN);
   ForwardKernel flatten_kernel = forward_kernel_dispatcher(flatten_op, CPU);
   const Tensor *flatten_inputs[1] = {kernel};
-  flatten_kernel(flatten_inputs, flattened_kernel_view);
+  flatten_kernel(flatten_inputs, flattened_kernel_view, (KernelParams){0, 0});
 
   // 2. Perform im2col on the input 'a_input'
   u64 N = a_input->shape[0];
@@ -149,21 +146,18 @@ void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   const Tensor *transpose_inputs[1] = {im2col_output};
   // The transpose kernel expects the axes to be passed as variadic arguments.
   // For a 2D tensor, transposing means swapping axes 0 and 1.
-  transpose_kernel(transpose_inputs, im2col_output_transposed, 0, 1);
+  transpose_kernel(transpose_inputs, im2col_output_transposed, (KernelParams){0, 1});
 
   // 4. Perform matmul
   Op matmul_op = get_op_impl(MATMUL);
   ForwardKernel matmul_kernel = forward_kernel_dispatcher(matmul_op, CPU);
   const Tensor *matmul_inputs[2] = {flattened_kernel_view, im2col_output_transposed};
-  matmul_kernel(matmul_inputs, output, a);
+  matmul_kernel(matmul_inputs, output, (KernelParams){0, 0});
 }
 
-void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
-  va_list args;
-  va_start(args, output);
-  Arena *a = va_arg(args, Arena *);
-  u64 stride = va_arg(args, u64);
-  va_end(args);
+void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
+  Arena *a = (Arena *)params.dim;
+  u64 stride = params.keepdim;
 
   Tensor *a_input = inputs[0]; // Input image
   Tensor *kernel = inputs[1]; // Convolution kernel
@@ -194,7 +188,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   Op flatten_op = get_op_impl(FLATTEN);
   ForwardKernel flatten_kernel = forward_kernel_dispatcher(flatten_op, CPU);
   const Tensor *flatten_inputs[1] = {kernel};
-  flatten_kernel(flatten_inputs, flattened_kernel_view);
+  flatten_kernel(flatten_inputs, flattened_kernel_view, (KernelParams){0, 0});
 
   Tensor *flattened_kernel_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(flattened_kernel_transposed, 0, sizeof(Tensor));
@@ -202,7 +196,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   Op transpose_op = get_op_impl(TRANSPOSE);
   ForwardKernel transpose_kernel = forward_kernel_dispatcher(transpose_op, CPU);
   const Tensor *transpose_inputs_kernel[1] = {flattened_kernel_view};
-  transpose_kernel(transpose_inputs_kernel, flattened_kernel_transposed, 0, 1);
+  transpose_kernel(transpose_inputs_kernel, flattened_kernel_transposed, (KernelParams){0, 1});
 
   //    b. Performing matmul with output->grad and transposed flattened kernel.
   //       Inputs for matmul: flattened_kernel_transposed, output->grad.
@@ -220,7 +214,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   Op matmul_op = get_op_impl(MATMUL);
   ForwardKernel matmul_kernel = forward_kernel_dispatcher(matmul_op, CPU);
   const Tensor *matmul_inputs_grad_input[2] = {flattened_kernel_transposed, output->grad};
-  matmul_kernel(matmul_inputs_grad_input, grad_im2col_output, a);
+  matmul_kernel(matmul_inputs_grad_input, grad_im2col_output, (KernelParams){0, 0});
 
   //    c. Performing col2im on the result.
   //       The result from matmul will be the gradient for the im2col output.
@@ -260,7 +254,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   memset(output_grad_transposed, 0, sizeof(Tensor));
 
   const Tensor *transpose_inputs_output_grad[1] = {output->grad};
-  transpose_kernel(transpose_inputs_output_grad, output_grad_transposed, 0, 1);
+  transpose_kernel(transpose_inputs_output_grad, output_grad_transposed, (KernelParams){0, 1});
 
   //    c. Performing matmul with im2col output and transposed output->grad.
   //       Inputs for matmul: output_grad_transposed, im2col_output.
@@ -276,7 +270,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   free(grad_flattened_kernel_strides);
 
   const Tensor *matmul_inputs_grad_kernel[2] = {output_grad_transposed, im2col_output};
-  matmul_kernel(matmul_inputs_grad_kernel, grad_flattened_kernel, a);
+  matmul_kernel(matmul_inputs_grad_kernel, grad_flattened_kernel, (KernelParams){0, 0});
 
   //    d. Reshaping the result back to the original kernel shape.
   //       The result from matmul is the gradient for the flattened kernel.

@@ -26,15 +26,15 @@ void mean_cpu_backward_float_dim_kernel(const float *a_data,
                                        float *da_data, const u64 *da_strides,
                                        u64 dim, bool keepdim);
 
-void mean_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void mean_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void mean_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void mean_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void mean_cuda_forward(const Tensor **inputs, Tensor *output, ...);
-void mean_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+void mean_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void mean_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

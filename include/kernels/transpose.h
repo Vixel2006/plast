@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-void transpose_cpu_forward(const Tensor **inputs, Tensor *output, ...);
-void transpose_cpu_backward(Tensor **inputs, const Tensor *output, ...);
+void transpose_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void transpose_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
 #ifdef __cplusplus
 }

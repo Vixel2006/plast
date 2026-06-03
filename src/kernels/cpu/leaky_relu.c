@@ -91,13 +91,9 @@ void leaky_relu_cpu_backward_float_non_contig_kernel(
   }
 }
 
-void leaky_relu_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void leaky_relu_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-  va_list args;
-  va_start(args, output);
-  float alpha = (float)va_arg(args, double); // va_arg promotes float to double
-  va_end(args);
-
+  float alpha = params.fval;
   int num_elements = numel(a);
 
   if (is_contiguous(a) && is_contiguous(output)) {
@@ -122,13 +118,9 @@ void leaky_relu_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void leaky_relu_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void leaky_relu_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-  va_list args;
-  va_start(args, output);
-  float alpha = (float)va_arg(args, double); // va_arg promotes float to double
-  va_end(args);
-
+  float alpha = params.fval;
   int num_elements = numel(a);
 
   if (is_contiguous(a) && is_contiguous(output)) {

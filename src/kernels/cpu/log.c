@@ -50,7 +50,7 @@ void log_cpu_backward_float_non_contig_kernel(
   }
 }
 
-void log_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void log_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   int num_elements = numel(a);
 
@@ -76,7 +76,7 @@ void log_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void log_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void log_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   int num_elements = numel(a);
 

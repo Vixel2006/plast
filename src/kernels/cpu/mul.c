@@ -83,7 +83,7 @@ void mul_cpu_backward_float_non_contig_kernel(
   }
 }
 
-void mul_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void mul_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
 
@@ -113,7 +113,7 @@ void mul_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   }
 }
 
-void mul_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
+void mul_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
 

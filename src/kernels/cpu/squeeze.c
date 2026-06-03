@@ -1,15 +1,11 @@
 #include "kernels/squeeze.h"
 #include "kernels/cpu_utils.h"
 #include "tensor.h"
-#include <stdarg.h>
 #include <string.h>
 
-void squeeze_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
+void squeeze_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
-  va_list args;
-  va_start(args, output);
-  u64 axis = va_arg(args, u64);
-  va_end(args);
+  u64 axis = params.dim;
 
   output->data = a->data;
   output->dtype = a->dtype;
@@ -23,8 +19,5 @@ void squeeze_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   output->ndim = new_ndim;
 }
 
-void squeeze_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
-  // NOTE: No explicit backward operation needed for squeeze, as output->grad
-  // points directly to input->grad. Gradients accumulated into output->grad
-  // will directly affect input->grad.
+void squeeze_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
 }
