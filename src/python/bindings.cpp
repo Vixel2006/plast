@@ -3,7 +3,9 @@
 #include <pybind11/numpy.h>
 extern "C" {
 #include "arena.h"
+#ifdef CUDA_AVAILABLE
 #include "arena_cuda.h"
+#endif
 #include "tensor.h"
 #include "node.h"
 #include "graph.h"
@@ -65,7 +67,11 @@ PYBIND11_MODULE(plast_core, m) {
             std::vector<float> host_data(n);
             
             if (t.device == CUDA) {
+#ifdef CUDA_AVAILABLE
                 arena_memcpy_d2h_cuda(host_data.data(), t.data, n * sizeof(float));
+#else
+                throw std::runtime_error("CUDA not available in this build");
+#endif
             } else {
                 memcpy(host_data.data(), t.data, n * sizeof(float));
             }
@@ -88,7 +94,11 @@ PYBIND11_MODULE(plast_core, m) {
             if (buf.size != numel(&t)) throw std::runtime_error("Size mismatch");
             
             if (t.device == CUDA) {
+#ifdef CUDA_AVAILABLE
                 arena_memcpy_h2d_cuda(t.data, buf.ptr, buf.size * sizeof(float));
+#else
+                throw std::runtime_error("CUDA not available in this build");
+#endif
             } else {
                 memcpy(t.data, buf.ptr, buf.size * sizeof(float));
             }
@@ -142,9 +152,11 @@ PYBIND11_MODULE(plast_core, m) {
         }))
         .def_readwrite("lr", &SGD::lr);
 
+#ifdef CUDA_AVAILABLE
     m.def("sgd_step_cuda", [](SGD &sgd, std::vector<Tensor*> params) {
         sgd_step_cuda(&sgd, params.data(), (int)params.size());
     });
+#endif
 
     m.def("sgd_step_cpu", [](SGD &sgd, std::vector<Tensor*> params) {
         sgd_step_cpu(&sgd, params.data(), (int)params.size());
@@ -166,9 +178,11 @@ PYBIND11_MODULE(plast_core, m) {
         adam_step_cpu(&adam, params.data(), (int)params.size());
     });
 
+#ifdef CUDA_AVAILABLE
     m.def("adam_step_cuda", [](Adam &adam, std::vector<Tensor*> params) {
         adam_step_cuda(&adam, params.data(), (int)params.size());
     });
+#endif
 
     // AdamW Optimizer Bindings
     py::class_<AdamW>(m, "AdamW")
@@ -187,11 +201,15 @@ PYBIND11_MODULE(plast_core, m) {
         adamw_step_cpu(&adamw, params.data(), (int)params.size());
     });
 
+#ifdef CUDA_AVAILABLE
     m.def("adamw_step_cuda", [](AdamW &adamw, std::vector<Tensor*> params) {
         adamw_step_cuda(&adamw, params.data(), (int)params.size());
     });
+#endif
 
+#ifdef CUDA_AVAILABLE
     m.def("zero_grad_cuda", &zero_grad_cuda);
+#endif
     m.def("zero_grad_cpu", &zero_grad_cpu);
 
     // Op Types

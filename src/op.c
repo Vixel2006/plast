@@ -32,80 +32,145 @@ Op get_op_impl(OP_TYPE op_type) {
   case ADD:
     op.cpu_forward = add_cpu_forward;
     op.cpu_backward = add_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = add_cuda_forward;
     op.cuda_backward = add_cuda_backward;
+#else
+    op.cuda_forward = add_cpu_forward;
+    op.cuda_backward = add_cpu_backward;
+#endif
     break;
   case SUB:
     op.cpu_forward = sub_cpu_forward;
     op.cpu_backward = sub_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = sub_cuda_forward;
     op.cuda_backward = sub_cuda_backward;
+#else
+    op.cuda_forward = sub_cpu_forward;
+    op.cuda_backward = sub_cpu_backward;
+#endif
     break;
   case MUL:
     op.cpu_forward = mul_cpu_forward;
     op.cpu_backward = mul_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = mul_cuda_forward;
     op.cuda_backward = mul_cuda_backward;
+#else
+    op.cuda_forward = mul_cpu_forward;
+    op.cuda_backward = mul_cpu_backward;
+#endif
     break;
   case DIV:
     op.cpu_forward = div_cpu_forward;
     op.cpu_backward = div_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = div_cuda_forward;
     op.cuda_backward = div_cuda_backward;
+#else
+    op.cuda_forward = div_cpu_forward;
+    op.cuda_backward = div_cpu_backward;
+#endif
     break;
   case MATMUL:
     op.cpu_forward = matmul_cpu_forward;
     op.cpu_backward = matmul_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = matmul_cuda_forward;
     op.cuda_backward = matmul_cuda_backward;
+#else
+    op.cuda_forward = matmul_cpu_forward;
+    op.cuda_backward = matmul_cpu_backward;
+#endif
     break;
   case LEAKY_RELU:
     op.cpu_forward = leaky_relu_cpu_forward;
     op.cpu_backward = leaky_relu_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = leaky_relu_cuda_forward;
     op.cuda_backward = leaky_relu_cuda_backward;
+#else
+    op.cuda_forward = leaky_relu_cpu_forward;
+    op.cuda_backward = leaky_relu_cpu_backward;
+#endif
     break;
   case LOG:
     op.cpu_forward = log_cpu_forward;
     op.cpu_backward = log_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = log_cuda_forward;
     op.cuda_backward = log_cuda_backward;
+#else
+    op.cuda_forward = log_cpu_forward;
+    op.cuda_backward = log_cpu_backward;
+#endif
     break;
   case EXP:
     op.cpu_forward = exp_cpu_forward;
     op.cpu_backward = exp_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = exp_cuda_forward;
     op.cuda_backward = exp_cuda_backward;
+#else
+    op.cuda_forward = exp_cpu_forward;
+    op.cuda_backward = exp_cpu_backward;
+#endif
     break;
   case ABS:
     op.cpu_forward = abs_cpu_forward;
     op.cpu_backward = abs_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = abs_cuda_forward;
     op.cuda_backward = abs_cuda_backward;
+#else
+    op.cuda_forward = abs_cpu_forward;
+    op.cuda_backward = abs_cpu_backward;
+#endif
     break;
   case NEG:
     op.cpu_forward = neg_cpu_forward;
     op.cpu_backward = neg_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = neg_cuda_forward;
     op.cuda_backward = neg_cuda_backward;
+#else
+    op.cuda_forward = neg_cpu_forward;
+    op.cuda_backward = neg_cpu_backward;
+#endif
     break;
   case SIN:
     op.cpu_forward = sin_cpu_forward;
     op.cpu_backward = sin_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = sin_cuda_forward;
     op.cuda_backward = sin_cuda_backward;
+#else
+    op.cuda_forward = sin_cpu_forward;
+    op.cuda_backward = sin_cpu_backward;
+#endif
     break;
   case COS:
     op.cpu_forward = cos_cpu_forward;
     op.cpu_backward = cos_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = cos_cuda_forward;
     op.cuda_backward = cos_cuda_backward;
+#else
+    op.cuda_forward = cos_cpu_forward;
+    op.cuda_backward = cos_cpu_backward;
+#endif
     break;
   case TAN:
     op.cpu_forward = tan_cpu_forward;
     op.cpu_backward = tan_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = tan_cuda_forward;
     op.cuda_backward = tan_cuda_backward;
+#else
+    op.cuda_forward = tan_cpu_forward;
+    op.cuda_backward = tan_cpu_backward;
+#endif
     break;
   case VIEW:
     op.cpu_forward = view_cpu_forward;
@@ -146,26 +211,46 @@ Op get_op_impl(OP_TYPE op_type) {
   case MEAN:
     op.cpu_forward = mean_cpu_forward;
     op.cpu_backward = mean_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = mean_cuda_forward;
     op.cuda_backward = mean_cuda_backward;
+#else
+    op.cuda_forward = mean_cpu_forward;
+    op.cuda_backward = mean_cpu_backward;
+#endif
     break;
   case MIN:
     op.cpu_forward = min_cpu_forward;
     op.cpu_backward = min_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = min_cuda_forward;
     op.cuda_backward = min_cuda_backward;
+#else
+    op.cuda_forward = min_cpu_forward;
+    op.cuda_backward = min_cpu_backward;
+#endif
     break;
   case MAX:
     op.cpu_forward = max_cpu_forward;
     op.cpu_backward = max_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = max_cuda_forward;
     op.cuda_backward = max_cuda_backward;
+#else
+    op.cuda_forward = max_cpu_forward;
+    op.cuda_backward = max_cpu_backward;
+#endif
     break;
   case SUM:
     op.cpu_forward = sum_cpu_forward;
     op.cpu_backward = sum_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = sum_cuda_forward;
     op.cuda_backward = sum_cuda_backward;
+#else
+    op.cuda_forward = sum_cpu_forward;
+    op.cuda_backward = sum_cpu_backward;
+#endif
     break;
   case FLATTEN:
     op.cpu_forward = flatten_cpu_forward;
@@ -176,8 +261,13 @@ Op get_op_impl(OP_TYPE op_type) {
   case CONV2D:
     op.cpu_forward = conv2d_cpu_forward;
     op.cpu_backward = conv2d_cpu_backward;
+#ifdef CUDA_AVAILABLE
     op.cuda_forward = conv2d_cuda_forward;
     op.cuda_backward = conv2d_cuda_backward;
+#else
+    op.cuda_forward = conv2d_cpu_forward;
+    op.cuda_backward = conv2d_cpu_backward;
+#endif
     break;
   default:
     op.cpu_forward = NULL;

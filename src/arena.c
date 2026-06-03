@@ -1,6 +1,8 @@
 #include "arena.h"
 #include "arena_cpu.h"
+#ifdef CUDA_AVAILABLE
 #include "arena_cuda.h"
+#endif
 #include <string.h>
 
 Arena arena_create(u64 capacity, DEVICE device) {
@@ -14,9 +16,12 @@ Arena arena_create(u64 capacity, DEVICE device) {
     b->offset = 0;
     if (device == CPU) {
       b->buffer = arena_alloc_cpu(capacity);
-    } else {
+    }
+#ifdef CUDA_AVAILABLE
+    else {
       b->buffer = arena_alloc_cuda(capacity);
     }
+#endif
     a.current = b;
   }
   return a;
@@ -28,9 +33,12 @@ void arena_release(Arena *a) {
     ArenaBlock *prev = curr->prev;
     if (a->device == CPU) {
       arena_free_cpu(curr->buffer);
-    } else {
+    }
+#ifdef CUDA_AVAILABLE
+    else {
       arena_free_cuda(curr->buffer);
     }
+#endif
     free(curr);
     curr = prev;
   }
@@ -43,9 +51,12 @@ void arena_reset(Arena *a) {
     ArenaBlock *prev = curr->prev;
     if (a->device == CPU) {
       arena_free_cpu(curr->buffer);
-    } else {
+    }
+#ifdef CUDA_AVAILABLE
+    else {
       arena_free_cuda(curr->buffer);
     }
+#endif
     free(curr);
     curr = prev;
   }
@@ -68,9 +79,12 @@ void *arena_alloc(Arena *a, u64 size, u64 align) {
     new_block->offset = 0;
     if (a->device == CPU) {
       new_block->buffer = arena_alloc_cpu(new_capacity);
-    } else {
+    }
+#ifdef CUDA_AVAILABLE
+    else {
       new_block->buffer = arena_alloc_cuda(new_capacity);
     }
+#endif
 
     a->current = new_block;
     curr = new_block;
@@ -80,9 +94,12 @@ void *arena_alloc(Arena *a, u64 size, u64 align) {
   void *ptr = (char *)curr->buffer + next_pointer;
   if (a->device == CPU) {
     arena_memset_cpu(ptr, 0, size);
-  } else {
+  }
+#ifdef CUDA_AVAILABLE
+  else {
     arena_memset_cuda(ptr, 0, size);
   }
+#endif
   curr->offset = next_pointer + size;
 
   return ptr;
@@ -91,15 +108,21 @@ void *arena_alloc(Arena *a, u64 size, u64 align) {
 void arena_memcpy_h2d(Arena *a, void *dest, const void *src, u64 size) {
   if (a->device == CPU) {
     arena_memcpy_h2d_cpu(dest, src, size);
-  } else {
+  }
+#ifdef CUDA_AVAILABLE
+  else {
     arena_memcpy_h2d_cuda(dest, src, size);
   }
+#endif
 }
 
 void arena_memcpy_d2h(Arena *a, void *dest, const void *src, u64 size) {
   if (a->device == CPU) {
     arena_memcpy_d2h_cpu(dest, src, size);
-  } else {
+  }
+#ifdef CUDA_AVAILABLE
+  else {
     arena_memcpy_d2h_cuda(dest, src, size);
   }
+#endif
 }

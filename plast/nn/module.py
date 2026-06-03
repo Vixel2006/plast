@@ -44,10 +44,14 @@ class Module:
 
     def zero_grad(self):
         for p in self.parameters():
-            from ..plast_core import Device
-            from ..optim import zero_grad_cpu, zero_grad_cuda
+            from ..plast_core import Device, zero_grad_cpu
+            try:
+                from ..plast_core import zero_grad_cuda
+            except ImportError:
+                zero_grad_cuda = None
             if p.device == Device.CUDA:
-                zero_grad_cuda(p)
+                if zero_grad_cuda is not None:
+                    zero_grad_cuda(p)
             else:
                 zero_grad_cpu(p)
 

@@ -1,7 +1,10 @@
 #include "tensor.h"
 #include "kernels/cpu/cpu_tensor_init.h"
-#include <stdio.h>  // For fprintf, stderr
-#include <stdlib.h> // For malloc, free
+#ifdef CUDA_AVAILABLE
+#include "kernels/cuda/cuda_tensor_init.h"
+#endif
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int dtype_size(DTYPE dtype) {
@@ -74,9 +77,12 @@ Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[],
                                      num_elements * dtype_size(grad->dtype), 8);
     if (device == CPU) {
       zeros_cpu(grad, num_elements);
-    } else {
+    }
+#ifdef CUDA_AVAILABLE
+    else {
       zeros_cuda(grad, num_elements);
     }
+#endif
     t->grad = grad;
   } else {
     t->grad = NULL;
@@ -90,17 +96,23 @@ Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[],
 void zeros(Tensor *t, u64 num_elements) {
   if (t->device == CPU) {
     zeros_cpu(t, num_elements);
-  } else {
+  }
+#ifdef CUDA_AVAILABLE
+  else {
     zeros_cuda(t, num_elements);
   }
+#endif
 }
 
 void ones(Tensor *t, u64 num_elements) {
   if (t->device == CPU) {
     ones_cpu(t, num_elements);
-  } else {
+  }
+#ifdef CUDA_AVAILABLE
+  else {
     ones_cuda(t, num_elements);
   }
+#endif
 }
 
 Tensor *init(Arena *meta_arena, Arena *data_arena, DEVICE device, DTYPE dtype,
@@ -127,9 +139,12 @@ Tensor *init(Arena *meta_arena, Arena *data_arena, DEVICE device, DTYPE dtype,
 void set_ones_grad(Tensor *t) {
   if (t->device == CPU) {
     set_ones_grad_cpu(t);
-  } else {
+  }
+#ifdef CUDA_AVAILABLE
+  else {
     set_ones_grad_cuda(t);
   }
+#endif
 }
 
 // Generic tensor creation and freeing functions
