@@ -146,7 +146,7 @@ cu_sources = [
 ]
 
 setup(
-    name="plast",
+    name="pyplast",
     version="0.1.0",
     packages=find_packages(),
     ext_modules=[

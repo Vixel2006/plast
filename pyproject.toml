@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "pybind11>=2.10", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "plast"
+name = "pyplast"
 version = "0.1.0"
 requires-python = ">=3.12"
 description = "A lightweight C/CUDA tensor library with Python bindings"
