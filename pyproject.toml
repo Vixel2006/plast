@@ -14,7 +14,7 @@ dependencies = ["numpy"]
 packages = ["plast"]
 
 [project.optional-dependencies]
-test = ["pytest", "numpy"]
+test = ["pytest", "pytest-timeout", "numpy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
