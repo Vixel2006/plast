@@ -34,6 +34,12 @@ jobs:
       - name: Build source distribution and wheel
         run: uv build
 
+      - name: Repair wheel for manylinux compliance
+        run: |
+          uv pip install auditwheel
+          auditwheel repair dist/*.whl -w dist/ --plat manylinux_2_31_x86_64
+          rm -f dist/*linux_x86_64.whl
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
