@@ -1,86 +1,64 @@
-import os
-import sys
-import subprocess
+import os, sys, subprocess, shutil
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import pybind11
 
-class CMakeExtension(Extension):
-    def __init__(self, name, sources, *args, **kwargs):
-        super().__init__(name, sources, *args, **kwargs)
+HAS_CUDA = shutil.which("nvcc") is not None
 
 class custom_build_ext(build_ext):
     def build_extension(self, ext):
-        # This is a bit of a hacky setup.py for CUDA without Pytorch.
-        # We will manually compile .cu files with nvcc and .c files with cc,
-        # then link them with pybind11.
-        
         include_dirs = [
-            "include",
-            "include/kernels/cuda",
-            "include/optimizers",
-            "/usr/local/cuda/include",
-            pybind11.get_include()
+            "include", "include/kernels/cuda", "include/optimizers",
+            pybind11.get_include(),
         ]
-        
-        c_sources = []
-        cu_sources = []
+        cuda_include = "/usr/local/cuda/include"
+        if HAS_CUDA and os.path.isdir(cuda_include):
+            include_dirs.insert(0, cuda_include)
+
+        c_srcs, cu_srcs = [], []
         for src in ext.sources:
-            if src.endswith(".c") or src.endswith(".cpp"):
-                c_sources.append(src)
-            elif src.endswith(".cu"):
-                cu_sources.append(src)
-        
+            if src.endswith((".c", ".cpp")):
+                c_srcs.append(src)
+            elif src.endswith(".cu") and HAS_CUDA:
+                cu_srcs.append(src)
+
         objs = []
-        
-        # Compile CU sources
-        for src in cu_sources:
+
+        for src in cu_srcs:
             obj = src + ".o"
             cmd = ["nvcc", "-O3", "-arch=sm_80", "-Xcompiler", "-fPIC", "-DCUDA_AVAILABLE"]
             for d in include_dirs:
-                cmd.extend(["-I", d])
-            cmd.extend(["-c", src, "-o", obj])
-            print(f"Compiling CUDA: {' '.join(cmd)}")
-            subprocess.check_call(cmd)
+                cmd += ["-I", d]
+            subprocess.check_call(cmd + ["-c", src, "-o", obj])
             objs.append(obj)
-            
-        # Compile C/CPP sources
-        python_includes = subprocess.check_output(["python3-config", "--includes"]).decode().split()
-        
-        for src in c_sources:
+
+        py_includes = subprocess.check_output(["python3-config", "--includes"]).decode().split()
+        cc = "g++" if any(s.endswith(".cpp") for s in c_srcs) else "cc"
+
+        for src in c_srcs:
             obj = src + ".o"
-            compiler = "cc"
-            if src.endswith(".cpp"):
-                compiler = "g++"
-            
-            cmd = [compiler, "-O3", "-fPIC", "-march=native", "-fopenmp", "-DCUDA_AVAILABLE"]
+            cflags = ["-O3", "-fPIC", "-march=native", "-fopenmp"]
+            if HAS_CUDA:
+                cflags.append("-DCUDA_AVAILABLE")
+            cmd = [cc] + cflags
             for d in include_dirs:
-                cmd.extend(["-I", d])
-            cmd.extend(python_includes)
-            cmd.extend(["-c", src, "-o", obj])
-            print(f"Compiling {src}: {' '.join(cmd)}")
+                cmd += ["-I", d]
+            cmd += py_includes + ["-c", src, "-o", obj]
             subprocess.check_call(cmd)
             objs.append(obj)
-            
-        # Link everything into a shared library
+
         ext_path = self.get_ext_fullpath(ext.name)
         os.makedirs(os.path.dirname(ext_path), exist_ok=True)
-        
-        # pybind11 linking flags
-        ld_flags = subprocess.check_output(["python3-config", "--ldflags"]).decode().split()
-        # Remove some flags that might cause issues in shared libs if needed
-        
-        link_cmd = ["nvcc", "-shared", "-o", ext_path] + objs
-        link_cmd.extend(["-L/usr/local/cuda/lib64", "-lcudart", "-lgomp"])
-        # Add pybind11 and python flags
-        python_includes = subprocess.check_output(["python3-config", "--includes"]).decode().split()
-        link_cmd.extend(python_includes)
-        link_cmd.extend(["-I" + pybind11.get_include()])
-        
-        print(f"Linking: {' '.join(link_cmd)}")
-        subprocess.check_call(link_cmd)
 
-# Gather all source files
+        if HAS_CUDA:
+            link = ["nvcc", "-shared", "-o", ext_path] + objs
+            link += ["-L/usr/local/cuda/lib64", "-lcudart", "-lgomp"]
+        else:
+            link = [cc, "-shared", "-o", ext_path] + objs + ["-lgomp", "-fPIC"]
+        link += ["-I" + pybind11.get_include()] + py_includes
+        subprocess.check_call(link)
+
+
 c_sources = [
     "src/arena.c", "src/arena_cpu.c", "src/graph.c", "src/node.c", "src/op.c", "src/tensor.c",
     "src/kernels/cpu/abs.c", "src/kernels/cpu/add.c", "src/kernels/cpu/broadcast.c",
@@ -94,7 +72,7 @@ c_sources = [
     "src/kernels/cpu/transpose.c", "src/kernels/cpu/unsqueeze.c", "src/kernels/cpu/view.c",
     "src/optimizers/cpu/adam.c", "src/optimizers/cpu/adamw.c", "src/optimizers/cpu/sgd.c",
     "src/optimizers/cpu/zero_grad.c",
-    "src/python/bindings.cpp"
+    "src/python/bindings.cpp",
 ]
 
 cu_sources = [
@@ -105,7 +83,7 @@ cu_sources = [
     "src/kernels/cuda/mean.cu", "src/kernels/cuda/min.cu", "src/kernels/cuda/mul.cu",
     "src/kernels/cuda/neg.cu", "src/kernels/cuda/sin.cu", "src/kernels/cuda/sub.cu",
     "src/kernels/cuda/sum.cu", "src/kernels/cuda/tan.cu", "src/optimizers/cuda/adam.cu",
-    "src/optimizers/cuda/adamw.cu", "src/optimizers/cuda/sgd.cu", "src/optimizers/cuda/zero_grad.cu"
+    "src/optimizers/cuda/adamw.cu", "src/optimizers/cuda/sgd.cu", "src/optimizers/cuda/zero_grad.cu",
 ]
 
 setup(
@@ -115,7 +93,7 @@ setup(
     ext_modules=[
         Extension(
             "plast.plast_core",
-            sources=c_sources + cu_sources,
+            sources=c_sources + (cu_sources if HAS_CUDA else []),
         )
     ],
     cmdclass={"build_ext": custom_build_ext},

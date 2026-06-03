@@ -12,36 +12,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install project
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[test]"
+          uv venv --python 3.12
+          uv pip install -e ".[test]"
 
       - name: Run tests (CPU)
-        run: |
-          pytest tests/ -v --timeout=120 -m "not slow"
+        run: uv run pytest tests/ -v --timeout=120 -m "not slow"
 
   test-gpu:
     runs-on: [self-hosted, linux, x64, gpu]
-    if: false  # Disabled by default; enable when a self-hosted GPU runner is available
+    if: false
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+        run: uv python install 3.12
 
-      - name: Install dependencies
+      - name: Install project
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[test]"
+          uv venv --python 3.12
+          uv pip install -e ".[test]"
 
-      - name: Run all tests (CPU + CUDA)
-        run: |
-          pytest tests/ -v --timeout=300 -m "not slow"
+      - name: Run tests
+        run: uv run pytest tests/ -v --timeout=300 -m "not slow"

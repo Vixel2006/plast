@@ -1,6 +1,48 @@
+# native binary
+plastc
+
+# build artifacts
 *.o
-*.cu.o
-*.c.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exp
+*.lib
+*.fatbin
+*.cubin
+*.ptx
+
+# python extension
+plast/plast_core*.so
+plast/*.egg-info/
+
+# python build
 build/
-.venv/
+dist/
+*.egg-info/
+.eggs/
 __pycache__/
+*.pyc
+*.pyo
+
+# environment
+.venv/
+venv/
+.env/
+
+# editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# jupyter
+.ipynb_checkpoints/
+
+# generated experiment data
+experiments/
