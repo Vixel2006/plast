@@ -30,7 +30,8 @@ typedef enum OP_TYPE {
   MIN,
   MAX,
   SUM,
-  FLATTEN
+  FLATTEN,
+  CONV2D
 } OP_TYPE;
 
 typedef struct Op {
@@ -40,7 +41,16 @@ typedef struct Op {
   BackwardKernel cuda_backward;
 } Op;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 Op get_op_impl(OP_TYPE op_type);
 
 ForwardKernel forward_kernel_dispatcher(Op op, DEVICE device);
 BackwardKernel backward_kernel_dispatcher(Op op, DEVICE device);
+
+#ifdef __cplusplus
+}
+#endif
+

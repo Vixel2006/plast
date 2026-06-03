@@ -5,9 +5,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "plast"
 version = "0.1.0"
+requires-python = ">=3.12"
 description = "A lightweight C/CUDA tensor library with Python bindings"
-authors = [{ name = "Vixel", email = "vixel@example.com" }]
+authors = [{ name = "Vixel", email = "yusufshihata2006@gmail.com" }]
 dependencies = ["numpy"]
 
 [tool.setuptools]
 packages = ["plast"]
+
+[project.optional-dependencies]
+test = ["pytest", "numpy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+    "cuda: marks tests that require CUDA (skipped if no GPU)",
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

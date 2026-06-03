@@ -108,7 +108,7 @@ void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
   const Tensor *kernel = inputs[1]; // Convolution kernel
 
   // 1. Flatten the kernel
-  Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, 1, sizeof(Tensor));
+  Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(flattened_kernel_view, 0, sizeof(Tensor));
 
   Op flatten_op = get_op_impl(FLATTEN);
@@ -141,7 +141,7 @@ void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, ...) {
                           stride);
 
   // 3. Transpose the im2col output
-  Tensor *im2col_output_transposed = (Tensor *)arena_alloc(a, 1, sizeof(Tensor));
+  Tensor *im2col_output_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(im2col_output_transposed, 0, sizeof(Tensor));
 
   Op transpose_op = get_op_impl(TRANSPOSE);
@@ -188,7 +188,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   //       Transposed shape will be [in_channels * kh * kw, out_channels].
 
   // Create a temporary tensor to hold the flattened view of the kernel
-  Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, 1, sizeof(Tensor));
+  Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(flattened_kernel_view, 0, sizeof(Tensor));
 
   Op flatten_op = get_op_impl(FLATTEN);
@@ -196,7 +196,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   const Tensor *flatten_inputs[1] = {kernel};
   flatten_kernel(flatten_inputs, flattened_kernel_view);
 
-  Tensor *flattened_kernel_transposed = (Tensor *)arena_alloc(a, 1, sizeof(Tensor));
+  Tensor *flattened_kernel_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(flattened_kernel_transposed, 0, sizeof(Tensor));
 
   Op transpose_op = get_op_impl(TRANSPOSE);
@@ -256,7 +256,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...) {
   //       output->grad shape: [N * H_out * W_out, out_channels]
   //       Transposed shape: [out_channels, N * H_out * W_out]
 
-  Tensor *output_grad_transposed = (Tensor *)arena_alloc(a, 1, sizeof(Tensor));
+  Tensor *output_grad_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(output_grad_transposed, 0, sizeof(Tensor));
 
   const Tensor *transpose_inputs_output_grad[1] = {output->grad};

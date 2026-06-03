@@ -22,6 +22,9 @@
 #include "kernels/transpose.h"
 #include "kernels/unsqueeze.h"
 #include "kernels/view.h"
+#include "kernels/flatten.h"
+#include "kernels/conv2d.h"
+
 
 Op get_op_impl(OP_TYPE op_type) {
   Op op;
@@ -163,6 +166,18 @@ Op get_op_impl(OP_TYPE op_type) {
     op.cpu_backward = sum_cpu_backward;
     op.cuda_forward = sum_cuda_forward;
     op.cuda_backward = sum_cuda_backward;
+    break;
+  case FLATTEN:
+    op.cpu_forward = flatten_cpu_forward;
+    op.cpu_backward = flatten_cpu_backward;
+    op.cuda_forward = flatten_cpu_forward;
+    op.cuda_backward = flatten_cpu_backward;
+    break;
+  case CONV2D:
+    op.cpu_forward = conv2d_cpu_forward;
+    op.cpu_backward = conv2d_cpu_backward;
+    op.cuda_forward = conv2d_cuda_forward;
+    op.cuda_backward = conv2d_cuda_backward;
     break;
   default:
     op.cpu_forward = NULL;

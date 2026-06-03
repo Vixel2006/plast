@@ -19,4 +19,15 @@ void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size,
 void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, ...);
 void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, ...);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void conv2d_cuda_forward(const Tensor **inputs, Tensor *output, ...);
+void conv2d_cuda_backward(Tensor **inputs, const Tensor *output, ...);
+
+#ifdef __cplusplus
+}
+#endif
+
 

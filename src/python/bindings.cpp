@@ -9,6 +9,8 @@ extern "C" {
 #include "graph.h"
 #include "op.h"
 #include "optimizers/sgd.h"
+#include "optimizers/adam.h"
+#include "optimizers/adamw.h"
 #include "optimizers/zero_grad.h"
 }
 
@@ -73,6 +75,14 @@ PYBIND11_MODULE(plast_core, m) {
             
             return py::array_t<float>(shape, host_data.data());
         })
+        .def_property_readonly("strides", [](const Tensor &t) {
+            std::vector<u64> strides;
+            for (u64 i = 0; i < t.ndim; ++i) strides.push_back(t.strides[i]);
+            return strides;
+        })
+        .def_property_readonly("is_contiguous", [](const Tensor &t) {
+            return is_contiguous(&t);
+        })
         .def("copy_from_numpy", [](Tensor &t, py::array_t<float> array) {
             auto buf = array.request();
             if (buf.size != numel(&t)) throw std::runtime_error("Size mismatch");
@@ -101,15 +111,23 @@ PYBIND11_MODULE(plast_core, m) {
         set_ones_grad(&t);
     });
 
+    m.def("ones", [](Tensor &t) {
+        ones(&t, numel(&t));
+    });
+
     // Node and Graph
     py::class_<Node>(m, "Node");
 
-    m.def("create_node", [](Arena &meta, std::vector<Tensor*> inputs, Tensor &output, OP_TYPE op_type, u64 dim, bool keepdim) {
+    m.def("create_node", [](Arena &meta, std::vector<Tensor*> inputs, Tensor &output, OP_TYPE op_type, u64 dim, u64 keepdim) {
         // We need to copy pointers to a buffer compatible with C Tensor**
         Tensor **input_ptrs = (Tensor **)arena_alloc(&meta, inputs.size() * sizeof(Tensor*), 8);
         for (size_t i = 0; i < inputs.size(); ++i) input_ptrs[i] = inputs[i];
         
-        return arena_node_alloc(&meta, input_ptrs, (int)inputs.size(), &output, get_op_impl(op_type), dim, keepdim);
+        u64 final_dim = dim;
+        if (op_type == CONV2D) {
+            final_dim = (u64)&meta;
+        }
+        return arena_node_alloc(&meta, input_ptrs, (int)inputs.size(), &output, get_op_impl(op_type), final_dim, keepdim);
     }, py::return_value_policy::reference);
 
     m.def("forward", [](Tensor &t) { if (t.creator) forward(t.creator); });
@@ -121,7 +139,8 @@ PYBIND11_MODULE(plast_core, m) {
             SGD sgd;
             sgd.lr = lr;
             return sgd;
-        }));
+        }))
+        .def_readwrite("lr", &SGD::lr);
 
     m.def("sgd_step_cuda", [](SGD &sgd, std::vector<Tensor*> params) {
         sgd_step_cuda(&sgd, params.data(), (int)params.size());
@@ -129,6 +148,47 @@ PYBIND11_MODULE(plast_core, m) {
 
     m.def("sgd_step_cpu", [](SGD &sgd, std::vector<Tensor*> params) {
         sgd_step_cpu(&sgd, params.data(), (int)params.size());
+    });
+
+    // Adam Optimizer Bindings
+    py::class_<Adam>(m, "Adam")
+        .def(py::init([](Arena &optimizer_arena, Arena &data_arena, float lr,
+                         float beta1, float beta2, float epsilon) {
+            return alloc_adam(&optimizer_arena, &data_arena, lr, beta1, beta2, epsilon);
+        }))
+        .def_readwrite("lr", &Adam::lr)
+        .def_readwrite("beta1", &Adam::beta1)
+        .def_readwrite("beta2", &Adam::beta2)
+        .def_readwrite("epsilon", &Adam::epsilon)
+        .def_readwrite("t", &Adam::t);
+
+    m.def("adam_step_cpu", [](Adam &adam, std::vector<Tensor*> params) {
+        adam_step_cpu(&adam, params.data(), (int)params.size());
+    });
+
+    m.def("adam_step_cuda", [](Adam &adam, std::vector<Tensor*> params) {
+        adam_step_cuda(&adam, params.data(), (int)params.size());
+    });
+
+    // AdamW Optimizer Bindings
+    py::class_<AdamW>(m, "AdamW")
+        .def(py::init([](Arena &optimizer_arena, Arena &data_arena, float lr,
+                         float beta1, float beta2, float epsilon, float weight_decay) {
+            return adamw_alloc(&optimizer_arena, &data_arena, lr, beta1, beta2, epsilon, weight_decay);
+        }))
+        .def_readwrite("lr", &AdamW::lr)
+        .def_readwrite("beta1", &AdamW::beta1)
+        .def_readwrite("beta2", &AdamW::beta2)
+        .def_readwrite("epsilon", &AdamW::epsilon)
+        .def_readwrite("weight_decay", &AdamW::weight_decay)
+        .def_readwrite("t", &AdamW::t);
+
+    m.def("adamw_step_cpu", [](AdamW &adamw, std::vector<Tensor*> params) {
+        adamw_step_cpu(&adamw, params.data(), (int)params.size());
+    });
+
+    m.def("adamw_step_cuda", [](AdamW &adamw, std::vector<Tensor*> params) {
+        adamw_step_cuda(&adamw, params.data(), (int)params.size());
     });
 
     m.def("zero_grad_cuda", &zero_grad_cuda);
@@ -141,7 +201,25 @@ PYBIND11_MODULE(plast_core, m) {
         .value("MUL", MUL)
         .value("DIV", DIV)
         .value("MATMUL", MATMUL)
+        .value("LEAKY_RELU", LEAKY_RELU)
+        .value("LOG", LOG)
+        .value("EXP", EXP)
         .value("ABS", ABS)
+        .value("NEG", NEG)
+        .value("SIN", SIN)
+        .value("COS", COS)
+        .value("TAN", TAN)
+        .value("VIEW", VIEW)
+        .value("TRANSPOSE", TRANSPOSE)
+        .value("UNSQUEEZE", UNSQUEEZE)
+        .value("SQUEEZE", SQUEEZE)
+        .value("EXPAND", EXPAND)
+        .value("BROADCAST", BROADCAST)
         .value("MEAN", MEAN)
+        .value("MIN", MIN)
+        .value("MAX", MAX)
+        .value("SUM", SUM)
+        .value("FLATTEN", FLATTEN)
+        .value("CONV2D", CONV2D)
         .export_values();
 }

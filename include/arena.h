@@ -27,9 +27,18 @@ typedef struct Arena {
   DEVICE device;
 } Arena;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 Arena arena_create(u64 capacity, DEVICE device);
 void arena_release(Arena *a);
 void arena_reset(Arena *a);
 void *arena_alloc(Arena *a, u64 size, u64 align);
 void arena_memcpy_h2d(Arena *a, void *dest, const void *src, u64 size);
 void arena_memcpy_d2h(Arena *a, void *dest, const void *src, u64 size);
+
+#ifdef __cplusplus
+}
+#endif
+
