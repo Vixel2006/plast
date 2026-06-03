@@ -1,6 +1,7 @@
 import os
 from .yaml_utils import load_yaml, dump_yaml
 
+
 class ExperimentConfig:
     def __init__(self, name, model, training, device="cpu", seed=42, notes=""):
         self.name = name

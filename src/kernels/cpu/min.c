@@ -5,8 +5,7 @@
 #include <stdarg.h>
 #include <string.h> // For memcpy
 
-void min_cpu_forward_float_contig_kernel(const float *a, float *c,
-                                         u64 num_elements) {
+void min_cpu_forward_float_contig_kernel(const float *a, float *c, u64 num_elements) {
   float min_val = FLT_MAX;
 #pragma omp parallel for reduction(min : min_val)
   for (u64 i = 0; i < num_elements; ++i) {
@@ -16,9 +15,8 @@ void min_cpu_forward_float_contig_kernel(const float *a, float *c,
   c[0] = min_val;
 }
 
-void min_cpu_backward_float_contig_kernel(const float *a, const float *c,
-                                          const float *dc, float *da,
-                                          u64 num_elements) {
+void min_cpu_backward_float_contig_kernel(const float *a, const float *c, const float *dc,
+                                          float *da, u64 num_elements) {
   const float min = c[0];
   float grad = dc[0];
   u64 count = 0;
@@ -41,10 +39,9 @@ void min_cpu_backward_float_contig_kernel(const float *a, const float *c,
   }
 }
 
-void min_cpu_forward_float_non_contig_kernel(const float *a_data,
-                                             const u64 *a_strides,
-                                             const u64 *shape, u64 ndim,
-                                             u64 num_elements, float *c_data) {
+void min_cpu_forward_float_non_contig_kernel(const float *a_data, const u64 *a_strides,
+                                             const u64 *shape, u64 ndim, u64 num_elements,
+                                             float *c_data) {
   float min_val = FLT_MAX;
   u64 coords[MAX_NDIM];
 
@@ -59,11 +56,9 @@ void min_cpu_forward_float_non_contig_kernel(const float *a_data,
   c_data[0] = min_val;
 }
 
-void min_cpu_forward_float_dim_kernel(const float *a_data, const u64 *a_strides,
-                                      const u64 *a_shape, u64 a_ndim,
-                                      float *c_data, const u64 *c_strides,
-                                      const u64 *c_shape, u64 c_ndim, u64 dim,
-                                      bool keepdim) {
+void min_cpu_forward_float_dim_kernel(const float *a_data, const u64 *a_strides, const u64 *a_shape,
+                                      u64 a_ndim, float *c_data, const u64 *c_strides,
+                                      const u64 *c_shape, u64 c_ndim, u64 dim, bool keepdim) {
   u64 output_num_elements = 1;
   for (u64 i = 0; i < c_ndim; ++i) {
     output_num_elements *= c_shape[i];
@@ -120,8 +115,8 @@ void min_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params)
     if (is_contiguous(a)) {
       switch (a->dtype) {
       case FLOAT32:
-        min_cpu_forward_float_contig_kernel(
-            (const float *)a->data, (float *)output->data, num_elements);
+        min_cpu_forward_float_contig_kernel((const float *)a->data, (float *)output->data,
+                                            num_elements);
         break;
       default:
         break;
@@ -129,9 +124,8 @@ void min_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params)
     } else {
       switch (a->dtype) {
       case FLOAT32:
-        min_cpu_forward_float_non_contig_kernel(
-            (const float *)a->data, a->strides, a->shape, a->ndim, num_elements,
-            (float *)output->data);
+        min_cpu_forward_float_non_contig_kernel((const float *)a->data, a->strides, a->shape,
+                                                a->ndim, num_elements, (float *)output->data);
         break;
       default:
         break;
@@ -141,15 +135,13 @@ void min_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params)
     // Reduction along a specific dimension
 
     // Update output tensor's shape and strides using the utility function
-    compute_reduction_shape_strides(a->shape, a->ndim, dim, keepdim,
-                                    output->shape, &output->ndim,
+    compute_reduction_shape_strides(a->shape, a->ndim, dim, keepdim, output->shape, &output->ndim,
                                     output->strides);
 
     switch (a->dtype) {
     case FLOAT32:
-      min_cpu_forward_float_dim_kernel((const float *)a->data, a->strides,
-                                       a->shape, a->ndim, (float *)output->data,
-                                       output->strides, output->shape,
+      min_cpu_forward_float_dim_kernel((const float *)a->data, a->strides, a->shape, a->ndim,
+                                       (float *)output->data, output->strides, output->shape,
                                        output->ndim, dim, keepdim);
       break;
     default:
@@ -158,10 +150,10 @@ void min_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params)
   }
 }
 
-void min_cpu_backward_float_non_contig_kernel(
-    const float *a_data, const u64 *a_strides, const float *c_data,
-    const float *dc_data, float *da_data, const u64 *da_strides,
-    const u64 *shape, u64 ndim, u64 num_elements) {
+void min_cpu_backward_float_non_contig_kernel(const float *a_data, const u64 *a_strides,
+                                              const float *c_data, const float *dc_data,
+                                              float *da_data, const u64 *da_strides,
+                                              const u64 *shape, u64 ndim, u64 num_elements) {
   const float min = c_data[0];
   float grad = dc_data[0];
   u64 count = 0;
@@ -190,12 +182,10 @@ void min_cpu_backward_float_non_contig_kernel(
   }
 }
 
-void min_cpu_backward_float_dim_kernel(const float *a_data,
-                                       const u64 *a_strides, const u64 *a_shape,
-                                       u64 a_ndim, const float *c_data,
-                                       const u64 *c_strides, const u64 *c_shape,
-                                       u64 c_ndim, const float *dc_data,
-                                       float *da_data, const u64 *da_strides,
+void min_cpu_backward_float_dim_kernel(const float *a_data, const u64 *a_strides,
+                                       const u64 *a_shape, u64 a_ndim, const float *c_data,
+                                       const u64 *c_strides, const u64 *c_shape, u64 c_ndim,
+                                       const float *dc_data, float *da_data, const u64 *da_strides,
                                        u64 dim, bool keepdim) {
   u64 output_num_elements = 1;
   for (u64 i = 0; i < c_ndim; ++i) {
@@ -266,10 +256,9 @@ void min_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params
       if (is_contiguous(a)) {
         switch (a->dtype) {
         case FLOAT32:
-          min_cpu_backward_float_contig_kernel(
-              (const float *)a->data, (const float *)output->data,
-              (const float *)output->grad->data, (float *)a->grad->data,
-              num_elements);
+          min_cpu_backward_float_contig_kernel((const float *)a->data, (const float *)output->data,
+                                               (const float *)output->grad->data,
+                                               (float *)a->grad->data, num_elements);
           break;
         default:
           break;
@@ -279,8 +268,8 @@ void min_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params
         case FLOAT32:
           min_cpu_backward_float_non_contig_kernel(
               (const float *)a->data, a->strides, (const float *)output->data,
-              (const float *)output->grad->data, (float *)a->grad->data,
-              a->grad->strides, a->shape, a->ndim, num_elements);
+              (const float *)output->grad->data, (float *)a->grad->data, a->grad->strides, a->shape,
+              a->ndim, num_elements);
           break;
         default:
           break;
@@ -291,9 +280,8 @@ void min_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params
       switch (a->dtype) {
       case FLOAT32:
         min_cpu_backward_float_dim_kernel(
-            (const float *)a->data, a->strides, a->shape, a->ndim,
-            (const float *)output->data, output->strides, output->shape,
-            output->ndim, (const float *)output->grad->data,
+            (const float *)a->data, a->strides, a->shape, a->ndim, (const float *)output->data,
+            output->strides, output->shape, output->ndim, (const float *)output->grad->data,
             (float *)a->grad->data, a->grad->strides, dim, keepdim);
         break;
       default:

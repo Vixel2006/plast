@@ -1,15 +1,14 @@
 #include "kernels/conv2d.h"
+#include "arena.h" // For arena_alloc
+#include "kernels/flatten.h"
 #include "kernels/matmul.h"
 #include "kernels/transpose.h"
-#include "kernels/flatten.h"
 #include "op.h"
-#include "arena.h" // For arena_alloc
 #include <stdarg.h>
 #include <string.h> // For memset
 
-void im2col_cpu_float_kernel(float *img, float *buffer, u64 *kernel_size,
-                             const u64 *img_shape, const u64 *img_strides, u64 img_ndim,
-                             u64 stride) {
+void im2col_cpu_float_kernel(float *img, float *buffer, u64 *kernel_size, const u64 *img_shape,
+                             const u64 *img_strides, u64 img_ndim, u64 stride) {
   u64 kh = kernel_size[0];
   u64 kw = kernel_size[1];
   u64 N = img_shape[0];
@@ -28,14 +27,11 @@ void im2col_cpu_float_kernel(float *img, float *buffer, u64 *kernel_size,
           u64 start_h = out_h * stride;
           u64 start_w = out_w * stride;
 
-          u64 buffer_base_idx =
-              batch * (H_out * W_out * C * kh * kw) +
-              out_h * (W_out * C * kh * kw) +
-              out_w * (C * kh * kw) +
-              c * (kh * kw);
+          u64 buffer_base_idx = batch * (H_out * W_out * C * kh * kw) +
+                                out_h * (W_out * C * kh * kw) + out_w * (C * kh * kw) +
+                                c * (kh * kw);
 
-          float *img_channel_base =
-              img + batch * img_strides[0] + c * img_strides[1];
+          float *img_channel_base = img + batch * img_strides[0] + c * img_strides[1];
 
           for (u64 kr = 0; kr < kh; ++kr) {
             for (u64 kc = 0; kc < kw; ++kc) {
@@ -51,9 +47,8 @@ void im2col_cpu_float_kernel(float *img, float *buffer, u64 *kernel_size,
   }
 }
 
-void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size,
-                             const u64 *img_shape, const u64 *img_strides, u64 img_ndim,
-                             u64 stride) {
+void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size, const u64 *img_shape,
+                             const u64 *img_strides, u64 img_ndim, u64 stride) {
   u64 kh = kernel_size[0];
   u64 kw = kernel_size[1];
   u64 N = img_shape[0];
@@ -64,7 +59,8 @@ void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size,
   u64 H_out = (H_in - kh) / stride + 1;
   u64 W_out = (W_in - kw) / stride + 1;
 
-  // Ensure img is zero-initialized before this kernel is called for correct accumulation.
+  // Ensure img is zero-initialized before this kernel is called for correct
+  // accumulation.
 
 #pragma omp parallel for collapse(4)
   for (u64 batch = 0; batch < N; ++batch) {
@@ -74,14 +70,11 @@ void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size,
           u64 start_h = out_h * stride;
           u64 start_w = out_w * stride;
 
-          u64 buffer_base_idx =
-              batch * (H_out * W_out * C * kh * kw) +
-              out_h * (W_out * C * kh * kw) +
-              out_w * (C * kh * kw) +
-              c * (kh * kw);
+          u64 buffer_base_idx = batch * (H_out * W_out * C * kh * kw) +
+                                out_h * (W_out * C * kh * kw) + out_w * (C * kh * kw) +
+                                c * (kh * kw);
 
-          float *img_channel_base =
-              img + batch * img_strides[0] + c * img_strides[1];
+          float *img_channel_base = img + batch * img_strides[0] + c * img_strides[1];
 
           for (u64 kr = 0; kr < kh; ++kr) {
             for (u64 kc = 0; kc < kw; ++kc) {
@@ -102,7 +95,7 @@ void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams para
   u64 stride = params.keepdim;
 
   const Tensor *a_input = inputs[0]; // Input image
-  const Tensor *kernel = inputs[1]; // Convolution kernel
+  const Tensor *kernel = inputs[1];  // Convolution kernel
 
   // 1. Flatten the kernel
   Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
@@ -127,15 +120,13 @@ void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams para
 
   u64 im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
   u64 *im2col_output_strides = compute_strides(im2col_output_shape, 2);
-  Tensor *im2col_output = arena_tensor_alloc(
-      a, a, im2col_output_shape, 2, im2col_output_strides, a_input->dtype,
-      a_input->requires_grad, NULL, CPU);
+  Tensor *im2col_output = arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides,
+                                             a_input->dtype, a_input->requires_grad, NULL, CPU);
   free(im2col_output_strides);
 
   u64 kernel_size_arr[2] = {kh, kw};
   im2col_cpu_float_kernel((float *)a_input->data, (float *)im2col_output->data, kernel_size_arr,
-                          a_input->shape, a_input->strides, a_input->ndim,
-                          stride);
+                          a_input->shape, a_input->strides, a_input->ndim, stride);
 
   // 3. Transpose the im2col output
   Tensor *im2col_output_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
@@ -160,7 +151,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
   u64 stride = params.keepdim;
 
   Tensor *a_input = inputs[0]; // Input image
-  Tensor *kernel = inputs[1]; // Convolution kernel
+  Tensor *kernel = inputs[1];  // Convolution kernel
 
   // output->grad contains the gradient from the subsequent layer.
 
@@ -200,15 +191,16 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
 
   //    b. Performing matmul with output->grad and transposed flattened kernel.
   //       Inputs for matmul: flattened_kernel_transposed, output->grad.
-  //       flattened_kernel_transposed shape: [in_channels * kh * kw, out_channels]
-  //       output->grad shape: [N * H_out * W_out, out_channels]
-  //       Resulting shape: [N * H_out * W_out, in_channels * kh * kw] (This is the shape of im2col output)
+  //       flattened_kernel_transposed shape: [in_channels * kh * kw,
+  //       out_channels] output->grad shape: [N * H_out * W_out, out_channels]
+  //       Resulting shape: [N * H_out * W_out, in_channels * kh * kw] (This is
+  //       the shape of im2col output)
 
   u64 grad_im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
   u64 *grad_im2col_output_strides = compute_strides(grad_im2col_output_shape, 2);
   Tensor *grad_im2col_output = arena_tensor_alloc(
-      a, a, grad_im2col_output_shape, 2, grad_im2col_output_strides, output->dtype,
-      false, NULL, CPU); // grad_im2col_output does not require grad
+      a, a, grad_im2col_output_shape, 2, grad_im2col_output_strides, output->dtype, false, NULL,
+      CPU); // grad_im2col_output does not require grad
   free(grad_im2col_output_strides);
 
   Op matmul_op = get_op_impl(MATMUL);
@@ -218,7 +210,8 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
 
   //    c. Performing col2im on the result.
   //       The result from matmul will be the gradient for the im2col output.
-  //       We need to call col2im_cpu_float_kernel to convert this back to the input gradient.
+  //       We need to call col2im_cpu_float_kernel to convert this back to the
+  //       input gradient.
 
   // Ensure a_input->grad is zero-initialized before accumulation
   if (a_input->grad) {
@@ -227,8 +220,7 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
 
   u64 kernel_size_arr[2] = {kh, kw};
   col2im_cpu_float_kernel((float *)grad_im2col_output->data, (float *)a_input->grad->data,
-                          kernel_size_arr, a_input->shape, a_input->strides,
-                          a_input->ndim, stride);
+                          kernel_size_arr, a_input->shape, a_input->strides, a_input->ndim, stride);
 
   // 2. Gradient with respect to the kernel (kernel->grad)
   //    a. Performing im2col on the original input.
@@ -237,14 +229,13 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
 
   u64 im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
   u64 *im2col_output_strides = compute_strides(im2col_output_shape, 2);
-  Tensor *im2col_output = arena_tensor_alloc(
-      a, a, im2col_output_shape, 2, im2col_output_strides, a_input->dtype,
-      false, NULL, CPU); // im2col_output does not require grad
+  Tensor *im2col_output =
+      arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides, a_input->dtype, false,
+                         NULL, CPU); // im2col_output does not require grad
   free(im2col_output_strides);
 
   im2col_cpu_float_kernel((float *)a_input->data, (float *)im2col_output->data, kernel_size_arr,
-                          a_input->shape, a_input->strides, a_input->ndim,
-                          stride);
+                          a_input->shape, a_input->strides, a_input->ndim, stride);
 
   //    b. Transposing the output->grad.
   //       output->grad shape: [N * H_out * W_out, out_channels]
@@ -260,13 +251,16 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
   //       Inputs for matmul: output_grad_transposed, im2col_output.
   //       output_grad_transposed shape: [out_channels, N * H_out * W_out]
   //       im2col_output shape: [N * H_out * W_out, C * kh * kw]
-  //       Resulting shape: [out_channels, C * kh * kw] (This is the shape of flattened kernel)
+  //       Resulting shape: [out_channels, C * kh * kw] (This is the shape of
+  //       flattened kernel)
 
-  u64 grad_flattened_kernel_shape[2] = {kernel->shape[0], kernel->shape[1] * kernel->shape[2] * kernel->shape[3]};
+  u64 grad_flattened_kernel_shape[2] = {kernel->shape[0],
+                                        kernel->shape[1] * kernel->shape[2] * kernel->shape[3]};
   u64 *grad_flattened_kernel_strides = compute_strides(grad_flattened_kernel_shape, 2);
-  Tensor *grad_flattened_kernel = arena_tensor_alloc(
-      a, a, grad_flattened_kernel_shape, 2, grad_flattened_kernel_strides, output->dtype,
-      false, NULL, CPU); // grad_flattened_kernel does not require grad
+  Tensor *grad_flattened_kernel =
+      arena_tensor_alloc(a, a, grad_flattened_kernel_shape, 2, grad_flattened_kernel_strides,
+                         output->dtype, false, NULL,
+                         CPU); // grad_flattened_kernel does not require grad
   free(grad_flattened_kernel_strides);
 
   const Tensor *matmul_inputs_grad_kernel[2] = {output_grad_transposed, im2col_output};
@@ -284,5 +278,6 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
 
   // Copy data from grad_flattened_kernel to kernel->grad
   // This assumes that the reshape is a direct copy.
-  memcpy(kernel->grad->data, grad_flattened_kernel->data, numel(kernel->grad) * dtype_size(kernel->grad->dtype));
+  memcpy(kernel->grad->data, grad_flattened_kernel->data,
+         numel(kernel->grad) * dtype_size(kernel->grad->dtype));
 }

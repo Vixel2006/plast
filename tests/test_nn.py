@@ -76,9 +76,9 @@ class TestLossFunctions:
         plast.forward(loss)
         diff = pred.numpy() - target.numpy()
         if reduction == "mean":
-            expected = np.mean(diff ** 2)
+            expected = np.mean(diff**2)
         else:
-            expected = np.sum(diff ** 2)
+            expected = np.sum(diff**2)
         np.testing.assert_allclose(loss.numpy(), np.array([expected]), **tol)
 
     @pytest.mark.xfail(reason="l1_loss uses .abs() which is not monkeypatched on Tensor")
@@ -152,7 +152,7 @@ class TestSequential:
         model.load_state_dict(sd)
 
 
-@ pytest.mark.xfail(reason="batch_norm uses eps scalar which creates 0-d tensor (segfault)")
+@pytest.mark.xfail(reason="batch_norm uses eps scalar which creates 0-d tensor (segfault)")
 class TestNormalization:
     def test_batch_norm_forward(self, device, tol, rng):
         bn = plast.nn.BatchNorm1d(4, device=device)
@@ -208,10 +208,12 @@ class TestModuleUtilities:
                 assert np.allclose(p.grad.numpy(), 0)
 
     def test_module_list(self, device, rng):
-        layers = plast.nn.ModuleList([
-            plast.nn.Linear(4, 8, device=device),
-            plast.nn.Linear(8, 2, device=device),
-        ])
+        layers = plast.nn.ModuleList(
+            [
+                plast.nn.Linear(4, 8, device=device),
+                plast.nn.Linear(8, 2, device=device),
+            ]
+        )
         assert len(layers) == 2
         x = plast.tensor(rng.randn(1, 4).astype(np.float32), device=device)
         out = layers[1](layers[0](x))

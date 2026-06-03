@@ -59,7 +59,7 @@ void print_tensor(Tensor *t, const char *name) {
     return;
   }
   float *data_h = (float *)malloc(total_elements * sizeof(float));
-  
+
   if (t->device == CUDA) {
     extern void arena_memcpy_d2h_cuda(void *dest, const void *src, u64 size);
     arena_memcpy_d2h_cuda(data_h, t->data, total_elements * sizeof(float));
@@ -73,24 +73,24 @@ void print_tensor(Tensor *t, const char *name) {
     if (i < total_elements - 1)
       printf(", ");
     if ((i + 1) % t->shape[t->ndim - 1] == 0 && i < total_elements - 1)
-        printf("\n ");
+      printf("\n ");
   }
   printf("]\n\n");
   free(data_h);
 }
 
 void copy_h2d(Tensor *t, const void *src) {
-    if (t->device == CUDA) {
-        extern void arena_memcpy_h2d_cuda(void *dest, const void *src, u64 size);
-        arena_memcpy_h2d_cuda(t->data, src, numel(t) * dtype_size(t->dtype));
-    } else {
-        memcpy(t->data, src, numel(t) * dtype_size(t->dtype));
-    }
+  if (t->device == CUDA) {
+    extern void arena_memcpy_h2d_cuda(void *dest, const void *src, u64 size);
+    arena_memcpy_h2d_cuda(t->data, src, numel(t) * dtype_size(t->dtype));
+  } else {
+    memcpy(t->data, src, numel(t) * dtype_size(t->dtype));
+  }
 }
 
 int main() {
   srand(42);
-  DEVICE device = CUDA; // Switch to CUDA
+  DEVICE device = CUDA;                 // Switch to CUDA
   Arena a = arena_create(Mib(10), CPU); // Metadata MUST be on CPU
   Arena ac = arena_create(Mib(100), device);
 
@@ -119,50 +119,62 @@ int main() {
   // Define graph
   u64 h1_shape[] = {4, hidden_size};
   Tensor *h1_mm = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){X, W1}, 2, h1_mm, get_op_impl(MATMUL), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){X, W1}, 2, h1_mm, get_op_impl(MATMUL),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *h1 = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1_mm, b1}, 2, h1, get_op_impl(ADD), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){h1_mm, b1}, 2, h1, get_op_impl(ADD),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *h1_abs = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
   arena_node_alloc(&a, (Tensor *[]){h1}, 1, h1_abs, get_op_impl(ABS), (KernelParams){0, 0, 0.0f});
 
   Tensor *h1_plus_abs = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1, h1_abs}, 2, h1_plus_abs, get_op_impl(ADD), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){h1, h1_abs}, 2, h1_plus_abs, get_op_impl(ADD),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *a1 = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1_plus_abs, two}, 2, a1, get_op_impl(DIV), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){h1_plus_abs, two}, 2, a1, get_op_impl(DIV),
+                   (KernelParams){0, 0, 0.0f});
 
   u64 logits_shape[] = {4, 1};
   Tensor *logits_mm = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){a1, W2}, 2, logits_mm, get_op_impl(MATMUL), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){a1, W2}, 2, logits_mm, get_op_impl(MATMUL),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *logits = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){logits_mm, b2}, 2, logits, get_op_impl(ADD), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){logits_mm, b2}, 2, logits, get_op_impl(ADD),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *diff = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){logits, Y}, 2, diff, get_op_impl(SUB), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){logits, Y}, 2, diff, get_op_impl(SUB),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *sq_diff = init(&a, &ac, device, FLOAT32, logits_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){diff, diff}, 2, sq_diff, get_op_impl(MUL), (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){diff, diff}, 2, sq_diff, get_op_impl(MUL),
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *loss = init(&a, &ac, device, FLOAT32, (u64[]){1}, 1, true, NULL);
-  Node *n_loss = arena_node_alloc(&a, (Tensor *[]){sq_diff}, 1, loss, get_op_impl(MEAN), (KernelParams){MAX_NDIM + 1, 0, 0.0f});
+  Node *n_loss = arena_node_alloc(&a, (Tensor *[]){sq_diff}, 1, loss, get_op_impl(MEAN),
+                                  (KernelParams){MAX_NDIM + 1, 0, 0.0f});
 
   SGD optimizer = arena_alloc_sgd(0.01f);
   Tensor *params[] = {W1, b1, W2, b2};
-  Tensor *intermediates[] = {h1_mm, h1, h1_abs, h1_plus_abs, a1, logits_mm, logits, diff, sq_diff, loss};
+  Tensor *intermediates[] = {h1_mm,     h1,     h1_abs, h1_plus_abs, a1,
+                             logits_mm, logits, diff,   sq_diff,     loss};
 
   printf("Starting training on CUDA...\n");
   for (int epoch = 0; epoch < 20000; ++epoch) {
-    for (int i = 0; i < 4; ++i) zero_grad_cuda(params[i]);
-    for (int i = 0; i < 10; ++i) zero_grad_cuda(intermediates[i]);
+    for (int i = 0; i < 4; ++i)
+      zero_grad_cuda(params[i]);
+    for (int i = 0; i < 10; ++i)
+      zero_grad_cuda(intermediates[i]);
 
     zeros(h1_mm, numel(h1_mm));
     zeros(logits_mm, numel(logits_mm));
 
     forward(n_loss);
-    
+
     if (epoch % 2000 == 0) {
       float loss_val;
       extern void arena_memcpy_d2h_cuda(void *dest, const void *src, u64 size);
@@ -182,7 +194,7 @@ int main() {
   forward(n_loss);
   print_tensor(logits, "Predictions");
   print_tensor(Y, "Targets");
-  
+
   float final_loss;
   extern void arena_memcpy_d2h_cuda(void *dest, const void *src, u64 size);
   arena_memcpy_d2h_cuda(&final_loss, loss->data, sizeof(float));
@@ -193,4 +205,3 @@ int main() {
 
   return 0;
 }
-

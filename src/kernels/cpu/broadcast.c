@@ -11,8 +11,8 @@ void broadcast_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams p
   output->device = a->device;
   output->requires_grad = a->requires_grad;
   output->grad = a->grad;
-  compute_broadcast_strides(a->shape, a->strides, a->ndim, output->shape,
-                            output->ndim, output->strides);
+  compute_broadcast_strides(a->shape, a->strides, a->ndim, output->shape, output->ndim,
+                            output->strides);
 }
 
 void broadcast_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {

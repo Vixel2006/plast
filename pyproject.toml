@@ -16,6 +16,12 @@ packages = ["plast"]
 [project.optional-dependencies]
 test = ["pytest", "pytest-timeout", "numpy"]
 
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+quote-style = "double"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

@@ -1,5 +1,6 @@
 from .module import Module
 
+
 class Sequential(Module):
     def __init__(self, *args):
         super().__init__()
@@ -27,6 +28,7 @@ class Sequential(Module):
             lines.append(f"  ({name}): {mod_str}")
         lines_str = "\n".join(lines)
         return f"Sequential(\n{lines_str}\n)"
+
 
 class ModuleList(Module):
     def __init__(self, modules=None):

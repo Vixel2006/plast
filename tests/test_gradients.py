@@ -29,6 +29,7 @@ class TestAutogradBasics:
 
         plast.reset_transient_arenas()
         from plast.plast_core import zero_grad_cpu, Device
+
         try:
             from plast.plast_core import zero_grad_cuda
         except ImportError:
@@ -108,7 +109,7 @@ class TestGradientCorrectness:
         plast.forward(loss)
         loss.backward()
         np.testing.assert_allclose(a.grad.numpy(), 1.0 / b_data, **tol)
-        np.testing.assert_allclose(b.grad.numpy(), -a_data / (b_data ** 2), **tol)
+        np.testing.assert_allclose(b.grad.numpy(), -a_data / (b_data**2), **tol)
 
     def test_sin_grad(self, device, tol, rng):
         x_data = rng.randn(3).astype(np.float32)

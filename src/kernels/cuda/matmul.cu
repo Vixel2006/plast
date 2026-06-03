@@ -9,10 +9,8 @@
 #define CEIL_DIV(a, b) (((a) + (b) - 1) / b)
 #define BLOCKSIZE 32
 
-__global__ void matmul_cuda_forward_contig_kernel(const float *a,
-                                                  const float *b, float *c,
-                                                  u64 batches, u64 rows,
-                                                  u64 inners, u64 cols) {
+__global__ void matmul_cuda_forward_contig_kernel(const float *a, const float *b, float *c,
+                                                  u64 batches, u64 rows, u64 inners, u64 cols) {
   const u64 tx = threadIdx.x;
   const u64 ty = threadIdx.y;
 
@@ -49,9 +47,8 @@ __global__ void matmul_cuda_forward_contig_kernel(const float *a,
   }
 }
 
-__global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b,
-                                                float *c, u64 batches, u64 rows,
-                                                u64 inners, u64 cols) {
+__global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b, float *c, u64 batches,
+                                              u64 rows, u64 inners, u64 cols) {
   const u64 tx = threadIdx.x;
   const u64 ty = threadIdx.y;
 
@@ -92,9 +89,8 @@ __global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b,
   }
 }
 
-__global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b,
-                                                float *c, u64 batches, u64 rows,
-                                                u64 inners, u64 cols) {
+__global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b, float *c, u64 batches,
+                                              u64 rows, u64 inners, u64 cols) {
   const u64 tx = threadIdx.x;
   const u64 ty = threadIdx.y;
 
@@ -110,15 +106,15 @@ __global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b,
   for (u64 phase = 0; phase < inners; phase += BLOCKSIZE) {
     u64 load_a_row = phase + tx;
     u64 load_a_col = blockIdx.y * BLOCKSIZE + ty;
-    
+
     if (load_a_row < inners && load_a_col < rows)
-       a_tiled[ty][tx] = a[batch * inners * rows + load_a_row * rows + load_a_col];
+      a_tiled[ty][tx] = a[batch * inners * rows + load_a_row * rows + load_a_col];
     else
-       a_tiled[ty][tx] = 0.0f;
-       
+      a_tiled[ty][tx] = 0.0f;
+
     u64 load_b_row = phase + ty;
     u64 load_b_col = blockIdx.x * BLOCKSIZE + tx;
-    
+
     if (load_b_row < inners && load_b_col < cols)
       b_tiled[ty][tx] = b[batch * inners * cols + load_b_row * cols + load_b_col];
     else
@@ -138,10 +134,7 @@ __global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b,
   }
 }
 
-
-
-extern "C" void matmul_cuda_forward(const Tensor **inputs, Tensor *output,
-                                    KernelParams params) {
+extern "C" void matmul_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
 
@@ -168,8 +161,7 @@ extern "C" void matmul_cuda_forward(const Tensor **inputs, Tensor *output,
   switch (a->dtype) {
   case FLOAT32:
     matmul_cuda_forward_contig_kernel<<<grid_dim, block_dim>>>(
-        (const float *)pa.data, (const float *)pb.data,
-        (float *)output->data, batches, M, K, N);
+        (const float *)pa.data, (const float *)pb.data, (float *)output->data, batches, M, K, N);
     break;
   default:
     fprintf(stderr, "Unsupported data type for matmul_cuda_forward\n");
@@ -181,8 +173,7 @@ extern "C" void matmul_cuda_forward(const Tensor **inputs, Tensor *output,
   CUDA_CHECK(cudaDeviceSynchronize());
 }
 
-extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output,
-                                     KernelParams params) {
+extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params) {
   Tensor *a = inputs[0];
   Tensor *b = inputs[1];
   Tensor *da = a->grad;
@@ -212,11 +203,9 @@ extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output,
       cuda_tensor_pack_init(&pb, b);
       if (pb.data) {
         dim3 block_dim_da(BLOCKSIZE, BLOCKSIZE, 1);
-        dim3 grid_dim_da(CEIL_DIV(K, BLOCKSIZE), CEIL_DIV(M, BLOCKSIZE),
-                         batches);
+        dim3 grid_dim_da(CEIL_DIV(K, BLOCKSIZE), CEIL_DIV(M, BLOCKSIZE), batches);
         matmul_cuda_forward_nt_kernel<<<grid_dim_da, block_dim_da>>>(
-            (const float *)pdc.data, (const float *)pb.data,
-            (float *)da->data, batches, M, N, K);
+            (const float *)pdc.data, (const float *)pb.data, (float *)da->data, batches, M, N, K);
       }
       cuda_tensor_pack_release(&pb);
     }
@@ -226,11 +215,9 @@ extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output,
       cuda_tensor_pack_init(&pa, a);
       if (pa.data) {
         dim3 block_dim_db(BLOCKSIZE, BLOCKSIZE, 1);
-        dim3 grid_dim_db(CEIL_DIV(N, BLOCKSIZE), CEIL_DIV(K, BLOCKSIZE),
-                         batches);
+        dim3 grid_dim_db(CEIL_DIV(N, BLOCKSIZE), CEIL_DIV(K, BLOCKSIZE), batches);
         matmul_cuda_forward_tn_kernel<<<grid_dim_db, block_dim_db>>>(
-            (const float *)pa.data, (const float *)pdc.data,
-            (float *)db->data, batches, K, M, N);
+            (const float *)pa.data, (const float *)pdc.data, (float *)db->data, batches, K, M, N);
       }
       cuda_tensor_pack_release(&pa);
     }

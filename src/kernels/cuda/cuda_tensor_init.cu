@@ -23,13 +23,11 @@ void zeros_cuda(Tensor *t, u64 num_elements) {
 
   switch (t->dtype) {
   case INT32: {
-    zeros_kernel_int32<<<blocksPerGrid, threadsPerBlock>>>((i32 *)t->data,
-                                                           num_elements);
+    zeros_kernel_int32<<<blocksPerGrid, threadsPerBlock>>>((i32 *)t->data, num_elements);
     break;
   }
   case FLOAT32: {
-    zeros_kernel_float32<<<blocksPerGrid, threadsPerBlock>>>((float *)t->data,
-                                                             num_elements);
+    zeros_kernel_float32<<<blocksPerGrid, threadsPerBlock>>>((float *)t->data, num_elements);
     break;
   }
   default:
@@ -60,13 +58,11 @@ void ones_cuda(Tensor *t, u64 num_elements) {
 
   switch (t->dtype) {
   case INT32: {
-    ones_kernel_int32<<<blocksPerGrid, threadsPerBlock>>>((i32 *)t->data,
-                                                          num_elements);
+    ones_kernel_int32<<<blocksPerGrid, threadsPerBlock>>>((i32 *)t->data, num_elements);
     break;
   }
   case FLOAT32: {
-    ones_kernel_float32<<<blocksPerGrid, threadsPerBlock>>>((float *)t->data,
-                                                            num_elements);
+    ones_kernel_float32<<<blocksPerGrid, threadsPerBlock>>>((float *)t->data, num_elements);
     break;
   }
   default:
@@ -84,13 +80,11 @@ void set_ones_grad_cuda(Tensor *t) {
 
   switch (t->dtype) {
   case INT32: {
-    ones_kernel_int32<<<blocksPerGrid, threadsPerBlock>>>((i32 *)t->grad->data,
-                                                          num_elements);
+    ones_kernel_int32<<<blocksPerGrid, threadsPerBlock>>>((i32 *)t->grad->data, num_elements);
     break;
   }
   case FLOAT32: {
-    ones_kernel_float32<<<blocksPerGrid, threadsPerBlock>>>(
-        (float *)t->grad->data, num_elements);
+    ones_kernel_float32<<<blocksPerGrid, threadsPerBlock>>>((float *)t->grad->data, num_elements);
     break;
   }
   default:

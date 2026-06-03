@@ -45,9 +45,8 @@ u64 numel(const Tensor *t) {
   return num_elements;
 }
 
-Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[],
-                           u64 ndim, u64 *strides, DTYPE dtype,
-                           bool requires_grad, struct Node *creator,
+Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[], u64 ndim,
+                           u64 *strides, DTYPE dtype, bool requires_grad, struct Node *creator,
                            DEVICE device) {
   Tensor *t = (Tensor *)arena_alloc(meta_arena, sizeof(Tensor), 8);
 
@@ -61,8 +60,7 @@ Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[],
   t->dtype = dtype;
 
   u64 num_elements = numel(t);
-  t->data =
-      (void *)arena_alloc(data_arena, num_elements * dtype_size(t->dtype), 8);
+  t->data = (void *)arena_alloc(data_arena, num_elements * dtype_size(t->dtype), 8);
 
   if (t->requires_grad) {
     Tensor *grad = (Tensor *)arena_alloc(meta_arena, sizeof(Tensor), 8);
@@ -73,8 +71,7 @@ Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[],
     grad->requires_grad = false;
     grad->dtype = dtype;
 
-    grad->data = (void *)arena_alloc(data_arena,
-                                     num_elements * dtype_size(grad->dtype), 8);
+    grad->data = (void *)arena_alloc(data_arena, num_elements * dtype_size(grad->dtype), 8);
     if (device == CPU) {
       zeros_cpu(grad, num_elements);
     }
@@ -115,12 +112,11 @@ void ones(Tensor *t, u64 num_elements) {
 #endif
 }
 
-Tensor *init(Arena *meta_arena, Arena *data_arena, DEVICE device, DTYPE dtype,
-             u64 shape[], u64 ndim, bool requires_grad,
-             void (*init_fn)(Tensor *t, u64 num_elements)) {
+Tensor *init(Arena *meta_arena, Arena *data_arena, DEVICE device, DTYPE dtype, u64 shape[],
+             u64 ndim, bool requires_grad, void (*init_fn)(Tensor *t, u64 num_elements)) {
   u64 *strides = compute_strides(shape, ndim);
-  Tensor *t = arena_tensor_alloc(meta_arena, data_arena, shape, ndim, strides,
-                                 dtype, requires_grad, NULL, device);
+  Tensor *t = arena_tensor_alloc(meta_arena, data_arena, shape, ndim, strides, dtype, requires_grad,
+                                 NULL, device);
   if (!t)
     return NULL;
 

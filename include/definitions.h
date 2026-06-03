@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef int8_t i8;
 typedef int16_t i16;
@@ -12,7 +12,7 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-#define U64_MAX ((u64)-1)
+#define U64_MAX ((u64) - 1)
 
 #define MAX_NDIM 8
 

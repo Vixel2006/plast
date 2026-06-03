@@ -6,13 +6,30 @@ typedef void (*ForwardKernel)(const Tensor **inputs, Tensor *output, KernelParam
 typedef void (*BackwardKernel)(Tensor **inputs, const Tensor *output, KernelParams params);
 
 typedef enum OP_TYPE {
-  ADD, SUB, MUL, DIV,
+  ADD,
+  SUB,
+  MUL,
+  DIV,
   MATMUL,
   LEAKY_RELU,
-  LOG, EXP, ABS, NEG, SIN, COS, TAN,
-  VIEW, TRANSPOSE, UNSQUEEZE, SQUEEZE, EXPAND, FLATTEN,
+  LOG,
+  EXP,
+  ABS,
+  NEG,
+  SIN,
+  COS,
+  TAN,
+  VIEW,
+  TRANSPOSE,
+  UNSQUEEZE,
+  SQUEEZE,
+  EXPAND,
+  FLATTEN,
   BROADCAST,
-  MEAN, MIN, MAX, SUM,
+  MEAN,
+  MIN,
+  MAX,
+  SUM,
   CONV2D
 } OP_TYPE;
 
@@ -35,4 +52,3 @@ BackwardKernel backward_kernel_dispatcher(Op op, DEVICE device);
 #ifdef __cplusplus
 }
 #endif
-

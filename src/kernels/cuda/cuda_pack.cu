@@ -3,10 +3,9 @@
 #include "kernels/pack.h"
 
 template <typename T>
-__global__ void pack_tensor_cuda_kernel(const T *src_data,
-                                        const u64 *src_shape,
-                                        const u64 *src_strides, u64 src_ndim,
-                                        T *dst_data, u64 num_elements) {
+__global__ void pack_tensor_cuda_kernel(const T *src_data, const u64 *src_shape,
+                                        const u64 *src_strides, u64 src_ndim, T *dst_data,
+                                        u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= num_elements)
     return;
@@ -24,10 +23,8 @@ __global__ void pack_tensor_cuda_kernel(const T *src_data,
   dst_data[idx] = src_data[offset];
 }
 
-template __global__ void pack_tensor_cuda_kernel<float>(const float *,
-                                                         const u64 *,
-                                                         const u64 *, u64,
-                                                         float *, u64);
+template __global__ void pack_tensor_cuda_kernel<float>(const float *, const u64 *, const u64 *,
+                                                        u64, float *, u64);
 
 void cuda_tensor_pack_init(CudaTensorPack *p, const Tensor *t) {
   p->data = NULL;
@@ -57,11 +54,10 @@ void cuda_tensor_pack_init(CudaTensorPack *p, const Tensor *t) {
     goto cleanup_shape;
   strides_ok = true;
 
-  if (cudaMemcpy(d_shape, t->shape, t->ndim * sizeof(u64),
-                 cudaMemcpyHostToDevice) != cudaSuccess)
+  if (cudaMemcpy(d_shape, t->shape, t->ndim * sizeof(u64), cudaMemcpyHostToDevice) != cudaSuccess)
     goto cleanup_strides;
-  if (cudaMemcpy(d_strides, t->strides, t->ndim * sizeof(u64),
-                 cudaMemcpyHostToDevice) != cudaSuccess)
+  if (cudaMemcpy(d_strides, t->strides, t->ndim * sizeof(u64), cudaMemcpyHostToDevice) !=
+      cudaSuccess)
     goto cleanup_strides;
 
   {
@@ -69,8 +65,7 @@ void cuda_tensor_pack_init(CudaTensorPack *p, const Tensor *t) {
     u64 num_blocks = (num_elements + threads_per_block - 1) / threads_per_block;
 
     pack_tensor_cuda_kernel<<<num_blocks, threads_per_block>>>(
-        (const float *)t->data, d_shape, d_strides, t->ndim,
-        (float *)p->_d_buf, num_elements);
+        (const float *)t->data, d_shape, d_strides, t->ndim, (float *)p->_d_buf, num_elements);
   }
 
   cudaFree(d_strides);

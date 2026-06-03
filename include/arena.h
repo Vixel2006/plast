@@ -41,4 +41,3 @@ void arena_memcpy_d2h(Arena *a, void *dest, const void *src, u64 size);
 #ifdef __cplusplus
 }
 #endif
-

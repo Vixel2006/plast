@@ -2,10 +2,12 @@
 #include "kernels/abs.h"
 #include "kernels/add.h"
 #include "kernels/broadcast.h"
+#include "kernels/conv2d.h"
 #include "kernels/cos.h"
 #include "kernels/div.h"
 #include "kernels/exp.h"
 #include "kernels/expand.h"
+#include "kernels/flatten.h"
 #include "kernels/leaky_relu.h"
 #include "kernels/log.h"
 #include "kernels/matmul.h"
@@ -22,25 +24,23 @@
 #include "kernels/transpose.h"
 #include "kernels/unsqueeze.h"
 #include "kernels/view.h"
-#include "kernels/flatten.h"
-#include "kernels/conv2d.h"
 
 // Op has a CUDA implementation — assign both backends
-#define OP_CUDA(NAME, name)                                                  \
-  case NAME:                                                                 \
-    op.cpu_forward = name##_cpu_forward;                                      \
-    op.cpu_backward = name##_cpu_backward;                                    \
-    op.cuda_forward = name##_cuda_forward;                                    \
-    op.cuda_backward = name##_cuda_backward;                                  \
+#define OP_CUDA(NAME, name)                                                                        \
+  case NAME:                                                                                       \
+    op.cpu_forward = name##_cpu_forward;                                                           \
+    op.cpu_backward = name##_cpu_backward;                                                         \
+    op.cuda_forward = name##_cuda_forward;                                                         \
+    op.cuda_backward = name##_cuda_backward;                                                       \
     break;
 
 // CPU-only op — CUDA fallback uses same function (shape ops, etc.)
-#define OP_CPU(NAME, name)                                                   \
-  case NAME:                                                                 \
-    op.cpu_forward = name##_cpu_forward;                                      \
-    op.cpu_backward = name##_cpu_backward;                                    \
-    op.cuda_forward = name##_cpu_forward;                                     \
-    op.cuda_backward = name##_cpu_backward;                                   \
+#define OP_CPU(NAME, name)                                                                         \
+  case NAME:                                                                                       \
+    op.cpu_forward = name##_cpu_forward;                                                           \
+    op.cpu_backward = name##_cpu_backward;                                                         \
+    op.cuda_forward = name##_cpu_forward;                                                          \
+    op.cuda_backward = name##_cpu_backward;                                                        \
     break;
 
 Op get_op_impl(OP_TYPE op_type) {

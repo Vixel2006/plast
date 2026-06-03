@@ -11,8 +11,7 @@ void view_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params
   output->requires_grad = a->requires_grad;
   output->grad = a->grad;
   // output->shape / output->ndim already set by tensor_init
-  compute_view_strides(a->shape, a->strides, a->ndim, output->shape,
-                       output->ndim, output->strides);
+  compute_view_strides(a->shape, a->strides, a->ndim, output->shape, output->ndim, output->strides);
 }
 
 void view_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params) {

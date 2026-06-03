@@ -1,8 +1,7 @@
 #include "cuda_utils.cuh"
 #include "sgd.h"
 
-__global__ void sgd_kernel(float *data, const float *grad, float lr,
-                           size_t num_elements) {
+__global__ void sgd_kernel(float *data, const float *grad, float lr, size_t num_elements) {
   size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     data[idx] -= lr * grad[idx];
@@ -28,7 +27,6 @@ void sgd_step_cuda(SGD *optimizer, Tensor **parameters, int num_parameters) {
     int blockSize = 256;
     int numBlocks = (num_elements + blockSize - 1) / blockSize;
 
-    sgd_kernel<<<numBlocks, blockSize>>>(data_d, grad_d, optimizer->lr,
-                                         num_elements);
+    sgd_kernel<<<numBlocks, blockSize>>>(data_d, grad_d, optimizer->lr, num_elements);
   }
 }

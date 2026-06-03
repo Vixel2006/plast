@@ -14,8 +14,8 @@ void unsqueeze_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams p
   output->grad = a->grad;
 
   u64 new_ndim;
-  compute_unsqueeze_shape_strides(a->shape, a->strides, a->ndim, axis,
-                                  output->shape, output->strides, &new_ndim);
+  compute_unsqueeze_shape_strides(a->shape, a->strides, a->ndim, axis, output->shape,
+                                  output->strides, &new_ndim);
   output->ndim = new_ndim;
 }
 

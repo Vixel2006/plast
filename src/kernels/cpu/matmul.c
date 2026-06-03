@@ -1,6 +1,6 @@
 #include "kernels/matmul.h"
-#include "kernels/pack.h"
 #include "kernels/cpu_utils.h"
+#include "kernels/pack.h"
 #include "kernels/transpose.h"
 #include "tensor.h"
 #include <omp.h>
@@ -10,9 +10,8 @@
 
 #define TILE_SIZE 32
 
-void matmul_cpu_forward_float_contig_kernel(const float *a, const float *b,
-                                            float *c, u64 batches, u64 rows,
-                                            u64 inners, u64 cols) {
+void matmul_cpu_forward_float_contig_kernel(const float *a, const float *b, float *c, u64 batches,
+                                            u64 rows, u64 inners, u64 cols) {
 #pragma omp parallel for collapse(2) num_threads(8)
   for (u64 batch = 0; batch < batches; ++batch) {
     for (u64 row_tile = 0; row_tile < rows; row_tile += TILE_SIZE) {
@@ -24,7 +23,7 @@ void matmul_cpu_forward_float_contig_kernel(const float *a, const float *b,
           for (u64 row = row_tile; row < row_tile_end; ++row) {
             for (u64 inner = inner_tile; inner < inner_tile_end; ++inner) {
               for (u64 col = col_tile; col < col_tile_end; ++col) {
-                c[batch * rows * cols + row * cols + col] += 
+                c[batch * rows * cols + row * cols + col] +=
                     a[batch * rows * inners + row * inners + inner] *
                     b[batch * inners * cols + inner * cols + col];
               }
@@ -36,9 +35,8 @@ void matmul_cpu_forward_float_contig_kernel(const float *a, const float *b,
   }
 }
 
-void matmul_cpu_forward_float_nt_kernel(const float *a, const float *b,
-                                            float *c, u64 batches, u64 rows,
-                                            u64 inners, u64 cols) {
+void matmul_cpu_forward_float_nt_kernel(const float *a, const float *b, float *c, u64 batches,
+                                        u64 rows, u64 inners, u64 cols) {
 #pragma omp parallel for collapse(2) num_threads(8)
   for (u64 batch = 0; batch < batches; ++batch) {
     for (u64 row_tile = 0; row_tile < rows; row_tile += TILE_SIZE) {
@@ -60,9 +58,8 @@ void matmul_cpu_forward_float_nt_kernel(const float *a, const float *b,
   }
 }
 
-void matmul_cpu_forward_float_tn_kernel(const float *a, const float *b,
-                                            float *c, u64 batches, u64 rows,
-                                            u64 inners, u64 cols) {
+void matmul_cpu_forward_float_tn_kernel(const float *a, const float *b, float *c, u64 batches,
+                                        u64 rows, u64 inners, u64 cols) {
 #pragma omp parallel for collapse(2) num_threads(8)
   for (u64 batch = 0; batch < batches; ++batch) {
     for (u64 row_tile = 0; row_tile < rows; row_tile += TILE_SIZE) {
@@ -107,9 +104,8 @@ void matmul_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams para
 
   switch (a->dtype) {
   case FLOAT32:
-    matmul_cpu_forward_float_contig_kernel(
-        (const float *)pa.data, (const float *)pb.data,
-        (float *)output->data, batches, M, K, N);
+    matmul_cpu_forward_float_contig_kernel((const float *)pa.data, (const float *)pb.data,
+                                           (float *)output->data, batches, M, K, N);
     break;
   default:
     fprintf(stderr, "Unsupported data type for matmul_cpu_forward\n");
@@ -145,8 +141,7 @@ void matmul_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
     TensorPack pb;
     tensor_pack_init(&pb, b);
     if (pb.data) {
-      matmul_cpu_forward_float_nt_kernel((const float *)pdc.data,
-                                         (const float *)pb.data,
+      matmul_cpu_forward_float_nt_kernel((const float *)pdc.data, (const float *)pb.data,
                                          (float *)da->data, batches, M, N, K);
     }
     tensor_pack_release(&pb);
@@ -156,8 +151,7 @@ void matmul_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
     TensorPack pa;
     tensor_pack_init(&pa, a);
     if (pa.data) {
-      matmul_cpu_forward_float_tn_kernel((const float *)pa.data,
-                                         (const float *)pdc.data,
+      matmul_cpu_forward_float_tn_kernel((const float *)pa.data, (const float *)pdc.data,
                                          (float *)db->data, batches, K, M, N);
     }
     tensor_pack_release(&pa);

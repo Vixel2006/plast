@@ -40,7 +40,8 @@ void topological_sort(DAG *dag, Node *root) {
 }
 
 void reset_node_flags(Node *node) {
-  if (!node || !node->visited) return;
+  if (!node || !node->visited)
+    return;
   node->visited = false;
   for (u64 i = 0; i < node->num_inputs; ++i) {
     if (node->inputs[i]->creator) {

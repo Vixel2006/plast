@@ -5,9 +5,11 @@ import plast
 RTOL = 1e-3
 ATOL = 1e-4
 
+
 def has_cuda():
     try:
         import plast
+
         _ = plast.Device.CUDA
         return True
     except Exception:

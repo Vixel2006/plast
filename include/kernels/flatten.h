@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tensor.h"
 #include "definitions.h"
+#include "tensor.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,4 +13,3 @@ void flatten_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams pa
 #ifdef __cplusplus
 }
 #endif
-

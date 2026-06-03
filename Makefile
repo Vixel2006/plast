@@ -21,7 +21,7 @@ CU_OBJS = $(patsubst %.cu, %.cu.o, $(CU_SOURCES))
 # Target
 TARGET = plastc
 
-.PHONY: all full install test test-fast test-all clean help
+.PHONY: all full install test test-fast test-all clean format format-c format-py help
 
 all: $(TARGET)
 
@@ -36,6 +36,7 @@ help:
 	@echo "  test-fast    Run only fast tests (no xfail, no slow)"
 	@echo "  test-all     Run all tests including @slow"
 	@echo "  clean        Remove object files and build artifacts"
+	@echo "  format       Format all C/CUDA (clang-format) and Python (ruff) files (100 cols)"
 
 # Build native binary
 $(TARGET): $(C_OBJS) $(CU_OBJS)
@@ -66,6 +67,17 @@ test-fast:
 
 test-all:
 	uv run python -m pytest tests/ -v --tb=short
+
+# Format all C/CUDA source and header files with clang-format
+C_FORMAT_FILES = $(shell find . \( -name '*.c' -o -name '*.h' -o -name '*.cu' -o -name '*.cuh' \) -not -path './build/*' -not -path './.venv/*')
+PY_FORMAT_FILES = $(shell find . -name '*.py' -not -path './build/*' -not -path './.venv/*')
+format: format-c format-py
+format-c:
+	clang-format -i --style=file $(C_FORMAT_FILES)
+	@echo "Formatted $$(echo $(C_FORMAT_FILES) | wc -w) C/CUDA files"
+format-py:
+	ruff format $(PY_FORMAT_FILES)
+	@echo "Formatted $$(echo $(PY_FORMAT_FILES) | wc -w) Python files"
 
 clean:
 	rm -f $(C_OBJS) $(CU_OBJS)

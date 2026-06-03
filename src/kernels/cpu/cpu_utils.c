@@ -16,9 +16,8 @@ void linear_to_coords(u64 linear_idx, const u64 *shape, u64 ndim, u64 *coords) {
   }
 }
 
-void compute_view_strides(const u64 *old_shape, const u64 *old_strides,
-                          u64 old_ndim, const u64 *new_shape, u64 new_ndim,
-                          u64 *new_strides) {
+void compute_view_strides(const u64 *old_shape, const u64 *old_strides, u64 old_ndim,
+                          const u64 *new_shape, u64 new_ndim, u64 *new_strides) {
   u64 current_stride = 1;
   for (u64 i = new_ndim; i-- > 0;) {
     new_strides[i] = current_stride;
@@ -26,8 +25,7 @@ void compute_view_strides(const u64 *old_shape, const u64 *old_strides,
   }
 }
 
-void compute_unsqueeze_shape_strides(const u64 *old_shape,
-                                     const u64 *old_strides, u64 old_ndim,
+void compute_unsqueeze_shape_strides(const u64 *old_shape, const u64 *old_strides, u64 old_ndim,
                                      u64 axis, u64 *new_shape, u64 *new_strides,
                                      u64 *new_ndim_ptr) {
   *new_ndim_ptr = old_ndim + 1;
@@ -43,9 +41,8 @@ void compute_unsqueeze_shape_strides(const u64 *old_shape,
   }
 }
 
-void compute_squeeze_shape_strides(const u64 *old_shape, const u64 *old_strides,
-                                   u64 old_ndim, u64 axis, u64 *new_shape,
-                                   u64 *new_strides, u64 *new_ndim_ptr) {
+void compute_squeeze_shape_strides(const u64 *old_shape, const u64 *old_strides, u64 old_ndim,
+                                   u64 axis, u64 *new_shape, u64 *new_strides, u64 *new_ndim_ptr) {
   *new_ndim_ptr = old_ndim - 1;
   u64 j = 0;
   for (u64 i = 0; i < old_ndim; ++i) {
@@ -59,9 +56,8 @@ void compute_squeeze_shape_strides(const u64 *old_shape, const u64 *old_strides,
   }
 }
 
-void compute_expand_strides(const u64 *old_shape, const u64 *old_strides,
-                            u64 old_ndim, const u64 *target_shape,
-                            u64 target_ndim, u64 *new_strides) {
+void compute_expand_strides(const u64 *old_shape, const u64 *old_strides, u64 old_ndim,
+                            const u64 *target_shape, u64 target_ndim, u64 *new_strides) {
   // NOTE: Assuming target_ndim >= old_ndim and dimensions are compatible for
   // expansion (i.e., old_shape[i] == 1 or old_shape[i] == target_shape[i])
   u64 offset_diff = target_ndim - old_ndim;
@@ -79,8 +75,7 @@ void compute_expand_strides(const u64 *old_shape, const u64 *old_strides,
   }
 }
 
-bool are_shapes_broadcastable(const u64 *shape1, u64 ndim1, const u64 *shape2,
-                              u64 ndim2) {
+bool are_shapes_broadcastable(const u64 *shape1, u64 ndim1, const u64 *shape2, u64 ndim2) {
   u64 max_ndim = (ndim1 > ndim2) ? ndim1 : ndim2;
   for (u64 i = 0; i < max_ndim; ++i) {
     u64 dim1 = (i < ndim1) ? shape1[ndim1 - 1 - i] : 1;
@@ -92,9 +87,8 @@ bool are_shapes_broadcastable(const u64 *shape1, u64 ndim1, const u64 *shape2,
   return true;
 }
 
-void get_broadcast_shape(const u64 *shape1, u64 ndim1, const u64 *shape2,
-                         u64 ndim2, u64 *broadcast_shape,
-                         u64 *broadcast_ndim_ptr) {
+void get_broadcast_shape(const u64 *shape1, u64 ndim1, const u64 *shape2, u64 ndim2,
+                         u64 *broadcast_shape, u64 *broadcast_ndim_ptr) {
   u64 max_ndim = (ndim1 > ndim2) ? ndim1 : ndim2;
   *broadcast_ndim_ptr = max_ndim;
 
@@ -105,9 +99,8 @@ void get_broadcast_shape(const u64 *shape1, u64 ndim1, const u64 *shape2,
   }
 }
 
-void compute_broadcast_strides(const u64 *old_shape, const u64 *old_strides,
-                               u64 old_ndim, const u64 *target_shape,
-                               u64 target_ndim, u64 *new_strides) {
+void compute_broadcast_strides(const u64 *old_shape, const u64 *old_strides, u64 old_ndim,
+                               const u64 *target_shape, u64 target_ndim, u64 *new_strides) {
   // NOTE: This function assumes that old_shape is broadcastable to target_shape
   // and target_ndim is the broadcasted ndim.
   u64 old_idx_offset = target_ndim - old_ndim;
@@ -125,10 +118,8 @@ void compute_broadcast_strides(const u64 *old_shape, const u64 *old_strides,
   }
 }
 
-void compute_reduction_shape_strides(const u64 *old_shape, u64 old_ndim,
-                                     u64 dim, bool keepdim,
-                                     u64 *new_shape, u64 *new_ndim_ptr,
-                                     u64 *new_strides) {
+void compute_reduction_shape_strides(const u64 *old_shape, u64 old_ndim, u64 dim, bool keepdim,
+                                     u64 *new_shape, u64 *new_ndim_ptr, u64 *new_strides) {
   u64 output_ndim = 0;
 
   if (keepdim) {
@@ -157,7 +148,7 @@ void compute_reduction_shape_strides(const u64 *old_shape, u64 old_ndim,
   // Manually compute strides for new_strides
   u64 current_stride = 1;
   for (int i = output_ndim - 1; i >= 0; --i) {
-      new_strides[i] = current_stride;
-      current_stride *= new_shape[i];
+    new_strides[i] = current_stride;
+    current_stride *= new_shape[i];
   }
 }

@@ -15,8 +15,8 @@ typedef struct {
   Arena *optimizer_arena;
 } AdamW;
 
-AdamW adamw_alloc(Arena *optimizer_arena, Arena *data_arena, float lr,
-                  float beta1, float beta2, float epsilon, float weight_decay);
+AdamW adamw_alloc(Arena *optimizer_arena, Arena *data_arena, float lr, float beta1, float beta2,
+                  float epsilon, float weight_decay);
 
 void adamw_step_cpu(AdamW *optimizer, Tensor **parameters, int num_parameters);
 

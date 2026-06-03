@@ -57,7 +57,9 @@ class TestDataLoader:
                 np.arange(n, dtype=np.float32).reshape(n, 1),
                 np.arange(n, dtype=np.float32).reshape(n, 1),
             ),
-            batch_size=5, shuffle=True, device=device,
+            batch_size=5,
+            shuffle=True,
+            device=device,
         )
         second_first = next(iter(loader2))[0].numpy().flatten()
 
@@ -70,7 +72,11 @@ class TestDataLoader:
             np.arange(n, dtype=np.float32).reshape(n, 1),
         )
         loader = plast.data.DataLoader(
-            dataset, batch_size=3, shuffle=False, drop_last=True, device=device,
+            dataset,
+            batch_size=3,
+            shuffle=False,
+            drop_last=True,
+            device=device,
         )
         batches = list(loader)
         assert len(batches) == 3
@@ -82,7 +88,11 @@ class TestDataLoader:
             np.arange(n, dtype=np.float32).reshape(n, 1),
         )
         loader = plast.data.DataLoader(
-            dataset, batch_size=3, shuffle=False, drop_last=False, device=device,
+            dataset,
+            batch_size=3,
+            shuffle=False,
+            drop_last=False,
+            device=device,
         )
         batches = list(loader)
         assert len(batches) == 4
@@ -106,7 +116,10 @@ class TestDataLoader:
         y = np.array([[0]], dtype=np.float32)
         dataset = plast.data.TensorDataset(x, y)
         loader = plast.data.DataLoader(
-            dataset, batch_size=1, shuffle=False, device=plast.Device.CPU,
+            dataset,
+            batch_size=1,
+            shuffle=False,
+            device=plast.Device.CPU,
         )
         batch_x, batch_y = next(iter(loader))
         assert batch_x.device == plast.Device.CPU
@@ -128,10 +141,14 @@ class TestDataLoader:
         y = np.arange(n, dtype=np.float32).reshape(n, 1)
         dataset = plast.data.TensorDataset(x, y)
         loader = plast.data.DataLoader(
-            dataset, batch_size=4, shuffle=False, device=device,
+            dataset,
+            batch_size=4,
+            shuffle=False,
+            device=device,
         )
         epoch1 = [batch[0].numpy() for batch in loader]
         epoch2 = [batch[0].numpy() for batch in loader]
         np.testing.assert_allclose(
-            np.concatenate(epoch1), np.concatenate(epoch2),
+            np.concatenate(epoch1),
+            np.concatenate(epoch2),
         )
