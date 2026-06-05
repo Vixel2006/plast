@@ -49,14 +49,27 @@ the test suite is your style guide. match what's there.
 - **no new dependencies** — plast is zero-dependency in C. keep it that way.
 - **bug fixes** — must include a regression test that failed before your fix.
 
+## opening a PR
+
+use the [PR template](.github/PULL_REQUEST_TEMPLATE.md) — it covers the checklist automatically.
+
+- branch from `main`: `git checkout -b feat/your-thing`
+- one change per PR. focused reviews land faster.
+- `make` must compile with zero warnings.
+- `python -m pytest tests/ -v --tb=short` must pass before opening.
+- bug fixes include a regression test that failed before the fix.
+- perf changes include before/after numbers in the template.
+
 ## reporting issues
 
-use github issues. include:
+use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.yaml). include:
 
 - a minimal reproduction (10 lines or fewer)
 - what you expected
 - what actually happened
 - `nvcc --version` and `gcc --version`
+
+features and ideas use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.yaml).
 
 ## the pipeline philosophy
 

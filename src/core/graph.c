@@ -1,7 +1,5 @@
 #include "core/graph.h"
 
-#define MIN_CAPACITY 1
-
 DAG *alloc_dag(u32 capacity) {
   DAG *dag = malloc(sizeof(DAG));
 
@@ -55,23 +53,27 @@ void build_dag(DAG *dag, Node *root) {
   topological_sort(dag, root);
 }
 
-void forward(Node *node) {
-  DAG *dag = alloc_dag(MIN_CAPACITY);
-  build_dag(dag, node);
-
-  for (u64 i = 0; i < dag->count; ++i) {
+void dag_forward(DAG *dag) {
+  for (u32 i = 0; i < dag->count; ++i)
     execute_forward(dag->nodes[i]);
-  }
+}
+
+void dag_backward(DAG *dag) {
+  for (u32 i = dag->count; i > 0; --i)
+    execute_backward(dag->nodes[i - 1]);
+}
+
+void forward(Node *node) {
+  DAG *dag = alloc_dag(MIN_DAG_CAPACITY);
+  build_dag(dag, node);
+  dag_forward(dag);
   dag_release(dag);
 }
 
 void backward(Node *node) {
-  DAG *dag = alloc_dag(MIN_CAPACITY);
+  DAG *dag = alloc_dag(MIN_DAG_CAPACITY);
   build_dag(dag, node);
-
-  for (u64 i = dag->count; i > 0; --i) {
-    execute_backward(dag->nodes[i - 1]);
-  }
+  dag_backward(dag);
   dag_release(dag);
 }
 

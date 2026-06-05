@@ -22,6 +22,8 @@
 #include "optimizers/sgd.h"
 #include "optimizers/zero_grad.h"
 #include "core/tensor.h"
+#include "scheduler/jit.h"
+#include "scheduler/scheduler.h"
 
 void rand_init(Tensor *t, u64 num_elements) {
   float scale = sqrtf(2.0f / (float)t->shape[0]);
@@ -163,6 +165,9 @@ int main() {
   Tensor *intermediates[] = {h1_mm,     h1,     h1_abs, h1_plus_abs, a1,
                              logits_mm, logits, diff,   sq_diff,     loss};
 
+  JIT *jit = init_jit(16);
+  Scheduler *scheduler = init_scheduler(jit);
+
   printf("Starting training on CUDA...\n");
   for (int epoch = 0; epoch < 20000; ++epoch) {
     for (int i = 0; i < 4; ++i)
@@ -173,7 +178,7 @@ int main() {
     zeros(h1_mm, numel(h1_mm));
     zeros(logits_mm, numel(logits_mm));
 
-    forward(n_loss);
+    schedule(scheduler, n_loss, FORWARD);
 
     if (epoch % 2000 == 0) {
       float loss_val;
@@ -183,7 +188,7 @@ int main() {
     }
 
     set_ones_grad(loss);
-    backward(n_loss);
+    schedule(scheduler, n_loss, BACKWARD);
 
     sgd_step_cuda(&optimizer, params, 4);
   }
@@ -199,6 +204,8 @@ int main() {
   extern void arena_memcpy_d2h_cuda(void *dest, const void *src, u64 size);
   arena_memcpy_d2h_cuda(&final_loss, loss->data, sizeof(float));
   printf("Final Loss: %.6f\n", final_loss);
+
+  scheduler_release(scheduler);
 
   arena_release(&a);
   arena_release(&ac);

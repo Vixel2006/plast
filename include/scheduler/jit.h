@@ -14,7 +14,7 @@ typedef struct JIT {
 JIT *init_jit(u32 cap);
 u32 hash(JIT *jit, DAG *dag);
 u32 search(JIT *jit, DAG *dag);
-void cache(JIT *jit, DAG *dag);
+u32 cache(JIT *jit, DAG *dag);
 void jit_release(JIT *jit);
 
 #endif // JIT_H

@@ -21,7 +21,7 @@ CU_OBJS = $(patsubst %.cu, %.cu.o, $(CU_SOURCES))
 # Target
 TARGET = plastc
 
-.PHONY: all full install test test-fast test-all clean format format-c format-py help
+.PHONY: all full install test test-fast test-all test-jit clean format format-c format-py help
 
 all: $(TARGET)
 
@@ -53,6 +53,17 @@ $(CU_OBJS): %.cu.o: %.cu
 # Build and install Python package
 install:
 	uv pip install -e . --no-build-isolation
+
+# Build & run the standalone JIT test (no CUDA needed)
+JIT_TEST_SRC = src/scheduler/jit.c
+JIT_TEST_BIN = jit_test
+JIT_CFLAGS = -O0 -g -DJIT_TEST $(INCLUDES)
+
+test-jit: $(JIT_TEST_BIN)
+	./$(JIT_TEST_BIN)
+
+$(JIT_TEST_BIN): $(JIT_TEST_SRC)
+	$(CC) $(JIT_CFLAGS) $< -o $@
 
 # Run tests
 test:
