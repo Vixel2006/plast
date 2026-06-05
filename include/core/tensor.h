@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arena.h"
+#include "core/arena.h"
 #include <stdbool.h>
 
 #define MAX_NDIM 8

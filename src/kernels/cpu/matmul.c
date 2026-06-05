@@ -2,7 +2,7 @@
 #include "kernels/cpu_utils.h"
 #include "kernels/pack.h"
 #include "kernels/transpose.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>

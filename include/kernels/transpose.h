@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tensor.h"
-#include "definitions.h"
+#include "core/tensor.h"
+#include "core/definitions.h"
 
 #ifdef __cplusplus
 extern "C" {

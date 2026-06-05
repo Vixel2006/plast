@@ -1,7 +1,7 @@
 #pragma once
 
-#include "definitions.h"
-#include "tensor.h"
+#include "core/definitions.h"
+#include "core/tensor.h"
 #include <stdbool.h>
 
 u64 get_offset(const u64 *coords, const u64 *strides, u64 ndim);

@@ -1,7 +1,7 @@
 #ifndef OPTIMIZERS_ZERO_GRAD_H
 #define OPTIMIZERS_ZERO_GRAD_H
 
-#include "tensor.h"
+#include "core/tensor.h"
 
 void zero_grad_cpu(Tensor *t);
 

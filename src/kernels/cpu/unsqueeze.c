@@ -1,6 +1,6 @@
 #include "kernels/unsqueeze.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <string.h>
 
 void unsqueeze_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {

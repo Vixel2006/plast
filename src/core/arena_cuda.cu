@@ -1,5 +1,5 @@
-#include "arena.h"
-#include "arena_cuda.h"
+#include "core/arena.h"
+#include "core/arena_cuda.h"
 #include <cuda_runtime.h>
 
 #define CUDA_CHECK_ERROR(err)                                                                      \

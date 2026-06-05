@@ -1,8 +1,8 @@
 #pragma once
 
-#include "definitions.h" // Added for u64
-#include "op.h"
-#include "tensor.h"
+#include "core/definitions.h" // Added for u64
+#include "core/op.h"
+#include "core/tensor.h"
 #include <immintrin.h>
 
 #define SIMD_WIDTH 8

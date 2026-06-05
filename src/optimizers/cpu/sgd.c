@@ -1,5 +1,5 @@
 #include "sgd.h"
-#include "arena.h"
+#include "core/arena.h"
 #include <stdio.h>
 #include <stdlib.h>
 

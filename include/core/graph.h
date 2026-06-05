@@ -1,6 +1,6 @@
 #pragma once
 
-#include "node.h"
+#include "core/node.h"
 
 typedef struct DAG {
   Node **nodes;

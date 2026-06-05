@@ -31,6 +31,9 @@ jobs:
       - name: Run tests
         run: uv run pytest tests/ -v --timeout=120 -m "not slow and not cuda"
 
+      - name: Clean build artifacts
+        run: rm -rf build/ dist/ *.egg-info
+
       - name: Build source distribution
         run: uv build --sdist
 

@@ -12,6 +12,7 @@ class custom_build_ext(build_ext):
             "include",
             "include/kernels/cuda",
             "include/optimizers",
+            "include/scheduler",
             pybind11.get_include(),
         ]
         cuda_include = "/usr/local/cuda/include"
@@ -75,12 +76,12 @@ class custom_build_ext(build_ext):
 
 
 c_sources = [
-    "src/arena.c",
-    "src/arena_cpu.c",
-    "src/graph.c",
-    "src/node.c",
-    "src/op.c",
-    "src/tensor.c",
+    "src/core/arena.c",
+    "src/core/arena_cpu.c",
+    "src/core/graph.c",
+    "src/core/node.c",
+    "src/core/op.c",
+    "src/core/tensor.c",
     "src/kernels/cpu/abs.c",
     "src/kernels/cpu/add.c",
     "src/kernels/cpu/broadcast.c",
@@ -115,10 +116,13 @@ c_sources = [
     "src/optimizers/cpu/sgd.c",
     "src/optimizers/cpu/zero_grad.c",
     "src/python/bindings.cpp",
+    "src/scheduler/scheduler.c",
+    "src/scheduler/jit.c",
+    "src/scheduler/fusion.c",
 ]
 
 cu_sources = [
-    "src/arena_cuda.cu",
+    "src/core/arena_cuda.cu",
     "src/kernels/cuda/abs.cu",
     "src/kernels/cuda/add.cu",
     "src/kernels/cuda/conv2d.cu",
@@ -147,7 +151,6 @@ cu_sources = [
 
 setup(
     name="pyplast",
-    version="0.1.0",
     packages=find_packages(),
     ext_modules=[
         Extension(

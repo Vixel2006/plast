@@ -1,6 +1,6 @@
 #include "kernels/view.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <string.h>
 
 void view_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {

@@ -1,7 +1,7 @@
-#include "arena.h"
-#include "arena_cpu.h"
+#include "core/arena.h"
+#include "core/arena_cpu.h"
 #ifdef CUDA_AVAILABLE
-#include "arena_cuda.h"
+#include "core/arena_cuda.h"
 #endif
 #include <string.h>
 

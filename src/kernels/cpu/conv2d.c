@@ -1,9 +1,9 @@
 #include "kernels/conv2d.h"
-#include "arena.h" // For arena_alloc
+#include "core/arena.h" // For arena_alloc
 #include "kernels/flatten.h"
 #include "kernels/matmul.h"
 #include "kernels/transpose.h"
-#include "op.h"
+#include "core/op.h"
 #include <stdarg.h>
 #include <string.h> // For memset
 

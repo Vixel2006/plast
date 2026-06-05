@@ -4,7 +4,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "graph.h"
+#include "core/graph.h"
 #include "kernels/abs.h"
 #include "kernels/add.h"
 #include "kernels/cpu_utils.h"
@@ -17,11 +17,11 @@
 #include "kernels/neg.h"
 #include "kernels/sub.h"
 #include "kernels/tan.h"
-#include "node.h"
-#include "op.h"
+#include "core/node.h"
+#include "core/op.h"
 #include "optimizers/sgd.h"
 #include "optimizers/zero_grad.h"
-#include "tensor.h"
+#include "core/tensor.h"
 
 void rand_init(Tensor *t, u64 num_elements) {
   float scale = sqrtf(2.0f / (float)t->shape[0]);

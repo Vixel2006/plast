@@ -1,6 +1,6 @@
 #include "kernels/sub.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <omp.h>
 
 void sub_cpu_forward_float_contig_kernel(const float *a, const float *b, float *c,

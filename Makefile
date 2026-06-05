@@ -8,11 +8,11 @@ NVFLAGS = -O3 -G -arch=sm_80
 DEBUG = -g
 
 # includes
-INCLUDES = -I./include -I./include/kernels/cuda -I/usr/local/cuda/include -I./include/optimizers
+INCLUDES = -I./include -I./include/kernels/cuda -I/usr/local/cuda/include -I./include/optimizers -I./include/scheduler
 
 # Sources
-C_SOURCES  = $(wildcard src/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/optimizers/cpu/*.c) $(wildcard *.c)
-CU_SOURCES = $(wildcard src/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildcard src/optimizers/cuda/*.cu)
+C_SOURCES  = $(wildcard src/core/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/optimizers/cpu/*.c) $(wildcard *.c)
+CU_SOURCES = $(wildcard src/core/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildcard src/optimizers/cuda/*.cu)
 
 # Objects
 C_OBJS  = $(patsubst %.c, %.c.o, $(C_SOURCES))
@@ -48,10 +48,6 @@ $(TARGET): $(C_OBJS) $(CU_OBJS)
 
 # Compile CU files — explicit loop avoids pattern-rule circular deps
 $(CU_OBJS): %.cu.o: %.cu
-	$(NVCC) $(NVFLAGS) $(DEBUG) $(INCLUDES) -c $< -o $@
-
-# Also ensure arena_cuda gets built (may be missed by pattern matching)
-src/arena_cuda.cu.o: src/arena_cuda.cu
 	$(NVCC) $(NVFLAGS) $(DEBUG) $(INCLUDES) -c $< -o $@
 
 # Build and install Python package

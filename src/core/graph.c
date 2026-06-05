@@ -1,4 +1,4 @@
-#include "graph.h"
+#include "core/graph.h"
 
 #define MIN_CAPACITY 1
 

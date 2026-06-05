@@ -1,5 +1,5 @@
 #include "adamw.h"
-#include "arena.h"
+#include "core/arena.h"
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,6 +1,6 @@
 #include "kernels/abs.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <math.h>
 #include <omp.h>
 

@@ -1,3 +1,6 @@
 recursive-include include *
 recursive-include src *
 include setup.py
+global-exclude *.o
+global-exclude *.pyc
+global-exclude __pycache__

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tensor.h"
+#include "core/tensor.h"
 
 typedef struct {
   float lr;

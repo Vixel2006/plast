@@ -2,18 +2,18 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 extern "C" {
-#include "arena.h"
+#include "core/arena.h"
 #ifdef CUDA_AVAILABLE
-#include "arena_cuda.h"
+#include "core/arena_cuda.h"
 #endif
-#include "graph.h"
-#include "node.h"
-#include "op.h"
+#include "core/graph.h"
+#include "core/node.h"
+#include "core/op.h"
 #include "optimizers/adam.h"
 #include "optimizers/adamw.h"
 #include "optimizers/sgd.h"
 #include "optimizers/zero_grad.h"
-#include "tensor.h"
+#include "core/tensor.h"
 }
 
 namespace py = pybind11;

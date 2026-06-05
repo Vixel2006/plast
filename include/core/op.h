@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tensor.h"
+#include "core/tensor.h"
 
 typedef void (*ForwardKernel)(const Tensor **inputs, Tensor *output, KernelParams params);
 typedef void (*BackwardKernel)(Tensor **inputs, const Tensor *output, KernelParams params);

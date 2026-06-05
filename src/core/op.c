@@ -1,4 +1,4 @@
-#include "op.h"
+#include "core/op.h"
 #include "kernels/abs.h"
 #include "kernels/add.h"
 #include "kernels/broadcast.h"
@@ -56,7 +56,7 @@
 Op get_op_impl(OP_TYPE op_type) {
   Op op;
   switch (op_type) {
-#include "ops.def"
+#include "core/ops.def"
   default:
     op.cpu_forward = NULL;
     op.cpu_backward = NULL;

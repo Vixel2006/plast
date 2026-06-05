@@ -1,4 +1,4 @@
-#include "tensor.h"
+#include "core/tensor.h"
 #include "kernels/cpu/cpu_tensor_init.h"
 #ifdef CUDA_AVAILABLE
 #include "kernels/cuda/cuda_tensor_init.h"

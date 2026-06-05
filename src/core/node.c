@@ -1,4 +1,4 @@
-#include "node.h"
+#include "core/node.h"
 
 Node *arena_node_alloc(Arena *a, Tensor **inputs, int num_inputs, Tensor *output, Op op,
                        KernelParams params) {
