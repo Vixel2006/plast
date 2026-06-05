@@ -1,6 +1,4 @@
-#include "graph.h"
-
-#define MIN_CAPACITY 1
+#include "core/graph.h"
 
 DAG *alloc_dag(u32 capacity) {
   DAG *dag = malloc(sizeof(DAG));
@@ -55,24 +53,51 @@ void build_dag(DAG *dag, Node *root) {
   topological_sort(dag, root);
 }
 
-void forward(Node *node) {
-  DAG *dag = alloc_dag(MIN_CAPACITY);
-  build_dag(dag, node);
-
-  for (u64 i = 0; i < dag->count; ++i) {
+void dag_forward(DAG *dag) {
+  for (u32 i = 0; i < dag->count; ++i)
     execute_forward(dag->nodes[i]);
-  }
+}
+
+void dag_backward(DAG *dag) {
+  for (u32 i = dag->count; i > 0; --i)
+    execute_backward(dag->nodes[i - 1]);
+}
+
+void forward(Node *node) {
+  DAG *dag = alloc_dag(MIN_DAG_CAPACITY);
+  build_dag(dag, node);
+  dag_forward(dag);
   dag_release(dag);
 }
 
 void backward(Node *node) {
-  DAG *dag = alloc_dag(MIN_CAPACITY);
+  DAG *dag = alloc_dag(MIN_DAG_CAPACITY);
   build_dag(dag, node);
-
-  for (u64 i = dag->count; i > 0; --i) {
-    execute_backward(dag->nodes[i - 1]);
-  }
+  dag_backward(dag);
   dag_release(dag);
+}
+
+bool dag_equal(DAG *lhs, DAG *rhs) {
+  if (lhs->count != rhs->count) return false;
+  for (u32 i = 0; i < lhs->count; i++) {
+    Node *a = lhs->nodes[i];
+    Node *b = rhs->nodes[i];
+    if (a->op_type != b->op_type) return false;
+    if (a->num_inputs != b->num_inputs) return false;
+    if (a->params.dim != b->params.dim) return false;
+    if (a->params.keepdim != b->params.keepdim) return false;
+    if (a->params.fval != b->params.fval) return false;
+    if ((a->output == NULL) != (b->output == NULL)) return false;
+    if (a->output) {
+      if (a->output->ndim != b->output->ndim) return false;
+      if (a->output->dtype != b->output->dtype) return false;
+      if (a->output->device != b->output->device) return false;
+      for (u64 d = 0; d < a->output->ndim; d++) {
+        if (a->output->shape[d] != b->output->shape[d]) return false;
+      }
+    }
+  }
+  return true;
 }
 
 void dag_release(DAG *dag) {

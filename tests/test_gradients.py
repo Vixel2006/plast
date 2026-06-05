@@ -35,11 +35,12 @@ class TestAutogradBasics:
         except ImportError:
             zero_grad_cuda = None
         for p in [x, y]:
+            raw = p._t
             if p.device == Device.CUDA:
                 if zero_grad_cuda is not None:
-                    zero_grad_cuda(p)
+                    zero_grad_cuda(raw)
             else:
-                zero_grad_cpu(p)
+                zero_grad_cpu(raw)
 
         z2 = (x * y).sum()
         plast.forward(z2)

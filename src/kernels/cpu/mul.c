@@ -1,6 +1,6 @@
 #include "kernels/mul.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <omp.h>
 
 void mul_cpu_forward_float_contig_kernel(const float *a, const float *b, float *c,

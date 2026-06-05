@@ -1,7 +1,7 @@
 #pragma once
 
-#include "definitions.h"
-#include "tensor.h"
+#include "core/definitions.h"
+#include "core/tensor.h"
 #include <immintrin.h>
 
 #define SIMD_WIDTH 8

@@ -41,7 +41,7 @@ class TestTensorCreation:
 class TestTensorProperties:
     def test_numel(self, device):
         t = plast.tensor(np.zeros((3, 4, 5), dtype=np.float32), device=device)
-        assert plast.plast_core.numel(t) == 60
+        assert t.numel() == 60
 
     def test_is_contiguous(self, device):
         t = plast.tensor(np.zeros((4, 4), dtype=np.float32), device=device)

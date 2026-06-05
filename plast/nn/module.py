@@ -1,4 +1,10 @@
-from ..plast_core import Tensor
+from ..tensor import Tensor
+from ..plast_core import Device, zero_grad_cpu
+
+try:
+    from ..plast_core import zero_grad_cuda
+except ImportError:
+    zero_grad_cuda = None
 
 
 class Module:
@@ -45,17 +51,12 @@ class Module:
 
     def zero_grad(self):
         for p in self.parameters():
-            from ..plast_core import Device, zero_grad_cpu
-
-            try:
-                from ..plast_core import zero_grad_cuda
-            except ImportError:
-                zero_grad_cuda = None
+            raw = p._t
             if p.device == Device.CUDA:
                 if zero_grad_cuda is not None:
-                    zero_grad_cuda(p)
+                    zero_grad_cuda(raw)
             else:
-                zero_grad_cpu(p)
+                zero_grad_cpu(raw)
 
     def state_dict(self, prefix=""):
         state = {}

@@ -34,8 +34,8 @@ class AdamW(Optimizer):
             self._adamw.epsilon = eps
             self._adamw.weight_decay = wd
 
-            cuda_params = [p for p in group["params"] if p.device == Device.CUDA]
-            cpu_params = [p for p in group["params"] if p.device == Device.CPU]
+            cuda_params = [p._t for p in group["params"] if p.device == Device.CUDA]
+            cpu_params = [p._t for p in group["params"] if p.device == Device.CPU]
 
             if cuda_params:
                 raise NotImplementedError(

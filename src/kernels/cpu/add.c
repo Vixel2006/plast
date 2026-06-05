@@ -1,6 +1,6 @@
 #include "kernels/add.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <omp.h>
 
 void add_cpu_forward_float_kernel(const float *a_data, const u64 *a_strides, const u64 *a_shape,

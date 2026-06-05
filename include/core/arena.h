@@ -1,6 +1,6 @@
 #pragma once
 
-#include "definitions.h"
+#include "core/definitions.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

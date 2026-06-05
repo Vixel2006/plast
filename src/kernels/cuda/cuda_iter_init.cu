@@ -1,5 +1,5 @@
 #include "cuda_runtime.h"
-#include "definitions.h"
+#include "core/definitions.h"
 #include "kernels/cpu_utils.h"
 #include "kernels/cuda/cuda_iter.cuh"
 #include <cstring>

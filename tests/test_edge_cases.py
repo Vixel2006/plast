@@ -8,7 +8,7 @@ class TestEdgeCases:
         a = plast.tensor(np.array([42.0], dtype=np.float32), device=device)
         assert a.item() == 42.0
         assert a.shape == [1]
-        assert plast.plast_core.numel(a) == 1
+        assert a.numel() == 1
 
     def test_scalar_arithmetic(self, device, tol, rng):
         a = plast.tensor(np.array([3.0], dtype=np.float32), device=device)
@@ -21,7 +21,7 @@ class TestEdgeCases:
         shape = [100, 100]
         a = plast.tensor(np.zeros(shape, dtype=np.float32), device=device)
         assert a.shape == shape
-        assert plast.plast_core.numel(a) == 10000
+        assert a.numel() == 10000
 
     @pytest.mark.slow
     def test_large_matmul(self, device, tol, rng):

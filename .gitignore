@@ -46,3 +46,7 @@ Thumbs.db
 
 # generated experiment data
 experiments/
+
+# PYPI rc file for secrets
+.pypirc
+

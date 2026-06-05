@@ -1,5 +1,5 @@
 #include "cuda_tensor_init.h"
-#include "definitions.h"
+#include "core/definitions.h"
 #include <cuda_runtime.h>
 
 __global__ void zeros_kernel_int32(i32 *data, u64 num_elements) {

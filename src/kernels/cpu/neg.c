@@ -1,6 +1,6 @@
 #include "kernels/neg.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <omp.h>
 
 void neg_cpu_forward_float_contig_kernel(const float *a, float *c, u64 num_elements) {

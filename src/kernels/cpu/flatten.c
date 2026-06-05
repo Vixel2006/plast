@@ -1,6 +1,6 @@
 #include "kernels/flatten.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <string.h>
 
 void flatten_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {

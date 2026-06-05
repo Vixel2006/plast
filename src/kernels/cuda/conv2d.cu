@@ -1,11 +1,11 @@
-#include "arena.h"
+#include "core/arena.h"
 #include "cuda_fp16.h"
 #include "cuda_runtime.h"
 #include "kernels/conv2d.h"
 #include "kernels/flatten.h"
 #include "kernels/matmul.h"
 #include "kernels/transpose.h"
-#include "op.h"
+#include "core/op.h"
 #include <stdarg.h>
 #include <string.h>
 

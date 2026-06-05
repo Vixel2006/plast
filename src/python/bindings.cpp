@@ -2,18 +2,20 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 extern "C" {
-#include "arena.h"
+#include "core/arena.h"
 #ifdef CUDA_AVAILABLE
-#include "arena_cuda.h"
+#include "core/arena_cuda.h"
 #endif
-#include "graph.h"
-#include "node.h"
-#include "op.h"
+#include "core/graph.h"
+#include "core/node.h"
+#include "core/op.h"
 #include "optimizers/adam.h"
 #include "optimizers/adamw.h"
 #include "optimizers/sgd.h"
 #include "optimizers/zero_grad.h"
-#include "tensor.h"
+#include "core/tensor.h"
+#include "scheduler/jit.h"
+#include "scheduler/scheduler.h"
 }
 
 namespace py = pybind11;
@@ -144,7 +146,7 @@ PYBIND11_MODULE(plast_core, m) {
           params.dim = (u64)&meta;
         }
         return arena_node_alloc(&meta, input_ptrs, (int)inputs.size(), &output,
-                                get_op_impl(op_type), params);
+                                get_op_impl(op_type), op_type, params);
       },
       py::return_value_policy::reference);
 
@@ -257,4 +259,34 @@ PYBIND11_MODULE(plast_core, m) {
       .value("FLATTEN", FLATTEN)
       .value("CONV2D", CONV2D)
       .export_values();
+
+  // Scheduler
+  py::enum_<PASS>(m, "Pass")
+      .value("FORWARD", FORWARD)
+      .value("BACKWARD", BACKWARD)
+      .export_values();
+
+  struct SchedulerDeleter {
+    void operator()(Scheduler *s) const { scheduler_release(s); }
+  };
+
+  py::class_<Scheduler, std::unique_ptr<Scheduler, SchedulerDeleter>>(
+      m, "Scheduler")
+      .def(py::init([](u32 cap) {
+        JIT *jit = init_jit(cap);
+        return std::unique_ptr<Scheduler, SchedulerDeleter>(
+            init_scheduler(jit));
+      }), py::arg("capacity"))
+      .def("schedule",
+           [](Scheduler &self, Node *root, PASS pass) {
+             schedule(&self, root, pass);
+           })
+      .def("set_jit_mode",
+           [](Scheduler &self, bool mode) {
+             set_jit_mode(&self, mode);
+           })
+      .def("clear_jit",
+           [](Scheduler &self) {
+             jit_clear(self.jit);
+           });
 }

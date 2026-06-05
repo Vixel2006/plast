@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tensor.h"
+#include "core/tensor.h"
 #include <stdbool.h>
 
 typedef struct {

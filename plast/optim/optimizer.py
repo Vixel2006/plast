@@ -10,7 +10,6 @@ class Optimizer:
     def __init__(self, params, defaults):
         self.params = list(params)
         self.defaults = defaults
-        # Initialize param groups
         self.param_groups = [{"params": self.params, **defaults}]
 
     def step(self):
@@ -20,8 +19,9 @@ class Optimizer:
         for group in self.param_groups:
             for p in group["params"]:
                 if p.grad is not None:
+                    raw = p._t
                     if p.device == Device.CUDA:
                         if zero_grad_cuda is not None:
-                            zero_grad_cuda(p)
+                            zero_grad_cuda(raw)
                     else:
-                        zero_grad_cpu(p)
+                        zero_grad_cpu(raw)

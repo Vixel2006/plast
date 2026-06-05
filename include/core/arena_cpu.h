@@ -1,6 +1,6 @@
 #pragma once
 
-#include "definitions.h" // For u64, etc.
+#include "core/definitions.h" // For u64, etc.
 
 void *arena_alloc_cpu(u64 size);
 void arena_free_cpu(void *ptr);

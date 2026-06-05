@@ -1,4 +1,4 @@
-#include "arena.h"
+#include "core/arena.h"
 #include <string.h>
 
 void *arena_alloc_cpu(u64 size) {

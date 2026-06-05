@@ -1,7 +1,7 @@
 #pragma once
 
-#include "definitions.h"
-#include "tensor.h"
+#include "core/definitions.h"
+#include "core/tensor.h"
 
 __device__ inline u64 cuda_get_offset(const u64 *coords, const u64 *strides, u64 ndim) {
   u64 offset = 0;

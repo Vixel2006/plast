@@ -1,6 +1,6 @@
 #include "kernels/transpose.h"
 #include "kernels/cpu_utils.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <string.h>
 
 void transpose_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params) {

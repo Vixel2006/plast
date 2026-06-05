@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tensor.h"
+#include "core/tensor.h"
 #include <stdarg.h>
 
 void min_cpu_forward_float_contig_kernel(const float *a, float *c, u64 num_elements);

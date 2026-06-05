@@ -1,6 +1,6 @@
 #include "kernels/cuda/cuda_utils.cuh"
 #include "kernels/max.h"
-#include "tensor.h"
+#include "core/tensor.h"
 #include <cuda_runtime.h>
 #include <float.h>
 #include <stdarg.h>

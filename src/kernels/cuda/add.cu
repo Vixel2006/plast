@@ -1,4 +1,4 @@
-#include "definitions.h"
+#include "core/definitions.h"
 #include "kernels/add.h"
 #include "kernels/cuda/cuda_utils.cuh"
 #include <cuda_runtime.h>

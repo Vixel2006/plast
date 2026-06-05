@@ -8,11 +8,11 @@ NVFLAGS = -O3 -G -arch=sm_80
 DEBUG = -g
 
 # includes
-INCLUDES = -I./include -I./include/kernels/cuda -I/usr/local/cuda/include -I./include/optimizers
+INCLUDES = -I./include -I./include/kernels/cuda -I/usr/local/cuda/include -I./include/optimizers -I./include/scheduler
 
 # Sources
-C_SOURCES  = $(wildcard src/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/optimizers/cpu/*.c) $(wildcard *.c)
-CU_SOURCES = $(wildcard src/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildcard src/optimizers/cuda/*.cu)
+C_SOURCES  = $(wildcard src/core/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/optimizers/cpu/*.c) $(wildcard src/scheduler/*.c) $(wildcard *.c)
+CU_SOURCES = $(wildcard src/core/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildcard src/optimizers/cuda/*.cu)
 
 # Objects
 C_OBJS  = $(patsubst %.c, %.c.o, $(C_SOURCES))
@@ -21,7 +21,7 @@ CU_OBJS = $(patsubst %.cu, %.cu.o, $(CU_SOURCES))
 # Target
 TARGET = plastc
 
-.PHONY: all full install test test-fast test-all clean format format-c format-py help
+.PHONY: all full install test test-fast test-all test-jit clean format format-c format-py help
 
 all: $(TARGET)
 
@@ -50,13 +50,21 @@ $(TARGET): $(C_OBJS) $(CU_OBJS)
 $(CU_OBJS): %.cu.o: %.cu
 	$(NVCC) $(NVFLAGS) $(DEBUG) $(INCLUDES) -c $< -o $@
 
-# Also ensure arena_cuda gets built (may be missed by pattern matching)
-src/arena_cuda.cu.o: src/arena_cuda.cu
-	$(NVCC) $(NVFLAGS) $(DEBUG) $(INCLUDES) -c $< -o $@
-
 # Build and install Python package
 install:
+	uv pip install setuptools pybind11 numpy --no-build-isolation
 	uv pip install -e . --no-build-isolation
+
+# Build & run the standalone JIT test (no CUDA needed)
+JIT_TEST_SRC = src/scheduler/jit.c
+JIT_TEST_BIN = jit_test
+JIT_CFLAGS = -O0 -g -DJIT_TEST $(INCLUDES)
+
+test-jit: $(JIT_TEST_BIN)
+	./$(JIT_TEST_BIN)
+
+$(JIT_TEST_BIN): $(JIT_TEST_SRC)
+	$(CC) $(JIT_CFLAGS) $< -o $@
 
 # Run tests
 test:

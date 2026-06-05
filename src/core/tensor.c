@@ -1,4 +1,4 @@
-#include "tensor.h"
+#include "core/tensor.h"
 #include "kernels/cpu/cpu_tensor_init.h"
 #ifdef CUDA_AVAILABLE
 #include "kernels/cuda/cuda_tensor_init.h"
@@ -19,6 +19,8 @@ int dtype_size(DTYPE dtype) {
 }
 
 u64 *compute_strides(const u64 shape[], u64 ndim) {
+  if (ndim == 0)
+    return NULL;
   u64 *strides = malloc(sizeof(u64) * ndim);
   strides[ndim - 1] = 1;
   for (u64 i = ndim - 1; i > 0; --i) {
@@ -28,6 +30,8 @@ u64 *compute_strides(const u64 shape[], u64 ndim) {
 }
 
 bool is_contiguous(const Tensor *t) {
+  if (t->ndim == 0)
+    return true;
   u64 expected_stride = 1;
   for (u64 i = t->ndim - 1; i > 0; --i) {
     if (t->strides[i] != expected_stride)
@@ -53,8 +57,10 @@ Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[], u6
   t->ndim = ndim;
   t->device = device;
 
-  memcpy(t->shape, shape, ndim * sizeof(u64));
-  memcpy(t->strides, strides, ndim * sizeof(u64));
+  if (ndim > 0) {
+    memcpy(t->shape, shape, ndim * sizeof(u64));
+    memcpy(t->strides, strides, ndim * sizeof(u64));
+  }
 
   t->requires_grad = requires_grad;
   t->dtype = dtype;
@@ -66,8 +72,10 @@ Tensor *arena_tensor_alloc(Arena *meta_arena, Arena *data_arena, u64 shape[], u6
     Tensor *grad = (Tensor *)arena_alloc(meta_arena, sizeof(Tensor), 8);
     grad->ndim = t->ndim;
     grad->device = device;
-    memcpy(grad->shape, t->shape, ndim * sizeof(u64));
-    memcpy(grad->strides, t->strides, ndim * sizeof(u64));
+    if (ndim > 0) {
+      memcpy(grad->shape, t->shape, ndim * sizeof(u64));
+      memcpy(grad->strides, t->strides, ndim * sizeof(u64));
+    }
     grad->requires_grad = false;
     grad->dtype = dtype;
 
@@ -158,13 +166,13 @@ Tensor *tensor_create(u64 *shape, u64 ndim, DTYPE dtype, DEVICE device) {
   t->creator = NULL;
   t->grad = NULL;
 
-  memcpy(t->shape, shape, ndim * sizeof(u64));
-  u64 *strides = compute_strides(shape, ndim);
-
-  for (u64 i = 0; i < ndim; ++i)
-    t->strides[i] = strides[i];
-
-  free(strides);
+  if (ndim > 0) {
+    memcpy(t->shape, shape, ndim * sizeof(u64));
+    u64 *strides = compute_strides(shape, ndim);
+    for (u64 i = 0; i < ndim; ++i)
+      t->strides[i] = strides[i];
+    free(strides);
+  }
 
   u64 num_elements = numel(t);
   t->data = malloc(num_elements * dtype_size(t->dtype));

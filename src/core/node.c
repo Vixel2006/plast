@@ -1,12 +1,13 @@
-#include "node.h"
+#include "core/node.h"
 
 Node *arena_node_alloc(Arena *a, Tensor **inputs, int num_inputs, Tensor *output, Op op,
-                       KernelParams params) {
+                       OP_TYPE op_type, KernelParams params) {
   Node *node = (Node *)arena_alloc(a, sizeof(Node), 8);
 
   node->inputs = inputs;
   node->output = output;
   node->op = op;
+  node->op_type = op_type;
 
   node->output->creator = node;
 
