@@ -117,7 +117,8 @@ void cache(JIT *jit, DAG *dag) {
   // we will use linear proping to resolve collisions
   u32 idx = hash(jit, dag);
   while (jit->cached_jobs[idx] != NULL) {
-    if (jit->cached_jobs[idx] == dag) return; // already in table
+    if (jit->cached_jobs[idx] == dag)
+      return; // already in table
     idx = (idx + 1) % jit->cap;
   }
 
@@ -126,9 +127,10 @@ void cache(JIT *jit, DAG *dag) {
 }
 
 void jit_release(JIT *jit) {
-  if (jit->cached_jobs) {
-    for (int i = 0; i < jit->count; ++i)
+  for (u32 i = 0; i < jit->cap; ++i) {
+    if (jit->cached_jobs[i] != NULL)
       dag_release(jit->cached_jobs[i]);
   }
+  free(jit->cached_jobs);
   free(jit);
 }
