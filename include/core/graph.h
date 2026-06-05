@@ -15,5 +15,6 @@ void topological_sort(DAG *dag, Node *root);
 void build_dag(DAG *dag, Node *root);
 void forward(Node *node);
 void backward(Node *node);
+bool dag_equal(DAG *lhs, DAG *rhs);
 void dag_release(DAG *dag);
 void reset_node_flags(Node *node);
