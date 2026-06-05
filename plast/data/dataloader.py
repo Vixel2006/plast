@@ -1,5 +1,6 @@
 import numpy as np
-from ..plast_core import Tensor, Device
+from ..tensor import Tensor
+from ..plast_core import Device
 from .._internal import tensor
 
 

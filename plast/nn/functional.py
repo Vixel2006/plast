@@ -1,7 +1,8 @@
 import numpy as np
-from ..plast_core import Tensor, OpType, Device
+from ..tensor import Tensor
+from ..plast_core import OpType, Device
 from .._internal import tensor
-from ..tensor_ops import _run_op
+from ..tensor import _run_op
 
 
 def relu(x):

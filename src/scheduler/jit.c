@@ -128,6 +128,16 @@ u32 cache(JIT *jit, DAG *dag) {
   return idx;
 }
 
+void jit_clear(JIT *jit) {
+  for (u32 i = 0; i < jit->cap; ++i) {
+    if (jit->cached_jobs[i] != NULL) {
+      dag_release(jit->cached_jobs[i]);
+      jit->cached_jobs[i] = NULL;
+    }
+  }
+  jit->count = 0;
+}
+
 void jit_release(JIT *jit) {
   for (u32 i = 0; i < jit->cap; ++i) {
     if (jit->cached_jobs[i] != NULL)

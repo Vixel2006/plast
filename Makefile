@@ -52,6 +52,7 @@ $(CU_OBJS): %.cu.o: %.cu
 
 # Build and install Python package
 install:
+	uv pip install setuptools pybind11 numpy --no-build-isolation
 	uv pip install -e . --no-build-isolation
 
 # Build & run the standalone JIT test (no CUDA needed)

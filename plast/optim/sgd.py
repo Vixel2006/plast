@@ -15,12 +15,10 @@ class SGD(Optimizer):
     def step(self):
         for group in self.param_groups:
             lr = group["lr"]
-            # If lr has changed from the initial default, we update SGD_core lr
-            # Since C SGD struct only has lr, we can just update it
             self._sgd.lr = lr
 
-            cuda_params = [p for p in group["params"] if p.device == Device.CUDA]
-            cpu_params = [p for p in group["params"] if p.device == Device.CPU]
+            cuda_params = [p._t for p in group["params"] if p.device == Device.CUDA]
+            cpu_params = [p._t for p in group["params"] if p.device == Device.CPU]
 
             if cuda_params:
                 if sgd_step_cuda is not None:

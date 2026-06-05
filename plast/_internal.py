@@ -1,5 +1,6 @@
 import numpy as np
-from .plast_core import Arena, Tensor, Device, DType, tensor_init
+from .plast_core import Arena, Device, DType, tensor_init
+
 
 _meta_arena = None
 _data_arena = None
@@ -38,6 +39,11 @@ def reset_transient_arenas():
         _meta_arena.reset()
     if _data_arena is not None:
         _data_arena.reset()
+    # Invalidate JIT cache — arena-allocated Node pointers are now stale
+    from .tensor import _get_scheduler
+
+    sched = _get_scheduler()
+    sched.clear_jit()
 
 
 def tensor(data, device=Device.CPU, dtype=DType.Float32, requires_grad=False, persistent=False):
@@ -49,8 +55,14 @@ def tensor(data, device=Device.CPU, dtype=DType.Float32, requires_grad=False, pe
     data = np.array(data, dtype=np.float32)
     shape = list(data.shape)
 
-    t = tensor_init(meta, data_arena, device, dtype, shape, requires_grad)
-    t.copy_from_numpy(data)
+    raw = tensor_init(meta, data_arena, device, dtype, shape, requires_grad)
+    raw.copy_from_numpy(data)
+
+    from .tensor import Tensor, Parameter
+
+    cls = Parameter if persistent else Tensor
+    t = cls.__new__(cls)
+    t._t = raw
     return t
 
 

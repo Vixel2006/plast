@@ -72,21 +72,27 @@ def train():
     batch_size = 64
     n_batches = len(x_train) // batch_size
 
+    @plast.jit
+    def train_step(batch_idx):
+        X = plast.tensor(x_train[batch_idx], device=DEVICE)
+        Y = plast.tensor(y_train_onehot[batch_idx], device=DEVICE)
+
+        optimizer.zero_grad()
+        pred = model(X)
+        loss = loss_fn(pred, Y)
+        plast.forward(loss)
+        loss.backward()
+        optimizer.step()
+        return loss
+
     for epoch in range(5):
         indices = np.random.permutation(len(x_train))
         epoch_loss = 0.0
 
         for i in range(n_batches):
             batch_idx = indices[i * batch_size : (i + 1) * batch_size]
-            X = plast.tensor(x_train[batch_idx], device=DEVICE)
-            Y = plast.tensor(y_train_onehot[batch_idx], device=DEVICE)
 
-            optimizer.zero_grad()
-            pred = model(X)
-            loss = loss_fn(pred, Y)
-            plast.forward(loss)
-            loss.backward()
-            optimizer.step()
+            loss = train_step(batch_idx)
             plast.reset_transient_arenas()
 
             epoch_loss += loss.item()
