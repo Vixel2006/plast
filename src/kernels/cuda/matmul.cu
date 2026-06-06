@@ -1,7 +1,7 @@
 #include "cuda_check.h"
 #include "core/definitions.h"
 #include "kernels/pack.h"
-#include "kernels/transpose.h"
+#include "kernels/ops/shape.h"
 #include "core/tensor.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
