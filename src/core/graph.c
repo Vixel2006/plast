@@ -78,22 +78,33 @@ void backward(Node *node) {
 }
 
 bool dag_equal(DAG *lhs, DAG *rhs) {
-  if (lhs->count != rhs->count) return false;
+  if (lhs->count != rhs->count)
+    return false;
   for (u32 i = 0; i < lhs->count; i++) {
     Node *a = lhs->nodes[i];
     Node *b = rhs->nodes[i];
-    if (a->op_type != b->op_type) return false;
-    if (a->num_inputs != b->num_inputs) return false;
-    if (a->params.dim != b->params.dim) return false;
-    if (a->params.keepdim != b->params.keepdim) return false;
-    if (a->params.fval != b->params.fval) return false;
-    if ((a->output == NULL) != (b->output == NULL)) return false;
+    if (a->op_type != b->op_type)
+      return false;
+    if (a->num_inputs != b->num_inputs)
+      return false;
+    if (a->params.dim != b->params.dim)
+      return false;
+    if (a->params.keepdim != b->params.keepdim)
+      return false;
+    if (a->params.fval != b->params.fval)
+      return false;
+    if ((a->output == NULL) != (b->output == NULL))
+      return false;
     if (a->output) {
-      if (a->output->ndim != b->output->ndim) return false;
-      if (a->output->dtype != b->output->dtype) return false;
-      if (a->output->device != b->output->device) return false;
+      if (a->output->ndim != b->output->ndim)
+        return false;
+      if (a->output->dtype != b->output->dtype)
+        return false;
+      if (a->output->device != b->output->device)
+        return false;
       for (u64 d = 0; d < a->output->ndim; d++) {
-        if (a->output->shape[d] != b->output->shape[d]) return false;
+        if (a->output->shape[d] != b->output->shape[d])
+          return false;
       }
     }
   }

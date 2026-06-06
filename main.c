@@ -5,18 +5,12 @@
 #include <time.h>
 
 #include "core/graph.h"
-#include "kernels/abs.h"
-#include "kernels/add.h"
-#include "kernels/cpu_utils.h"
-#include "kernels/div.h"
-#include "kernels/exp.h"
-#include "kernels/leaky_relu.h"
+#include "kernels/ops/unary.h"
+#include "kernels/ops/binary.h"
+#include "kernels/ops/reduce.h"
+#include "kernels/ops/shape.h"
 #include "kernels/matmul.h"
-#include "kernels/mean.h"
-#include "kernels/mul.h"
-#include "kernels/neg.h"
-#include "kernels/sub.h"
-#include "kernels/tan.h"
+#include "kernels/cpu_utils.h"
 #include "core/node.h"
 #include "core/op.h"
 #include "optimizers/sgd.h"
@@ -129,7 +123,8 @@ int main() {
                    (KernelParams){0, 0, 0.0f});
 
   Tensor *h1_abs = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
-  arena_node_alloc(&a, (Tensor *[]){h1}, 1, h1_abs, get_op_impl(ABS), ABS, (KernelParams){0, 0, 0.0f});
+  arena_node_alloc(&a, (Tensor *[]){h1}, 1, h1_abs, get_op_impl(ABS), ABS,
+                   (KernelParams){0, 0, 0.0f});
 
   Tensor *h1_plus_abs = init(&a, &ac, device, FLOAT32, h1_shape, 2, true, NULL);
   arena_node_alloc(&a, (Tensor *[]){h1, h1_abs}, 2, h1_plus_abs, get_op_impl(ADD), ADD,
@@ -158,7 +153,7 @@ int main() {
 
   Tensor *loss = init(&a, &ac, device, FLOAT32, (u64[]){1}, 1, true, NULL);
   Node *n_loss = arena_node_alloc(&a, (Tensor *[]){sq_diff}, 1, loss, get_op_impl(MEAN), MEAN,
-                                   (KernelParams){MAX_NDIM + 1, 0, 0.0f});
+                                  (KernelParams){MAX_NDIM + 1, 0, 0.0f});
 
   SGD optimizer = arena_alloc_sgd(0.01f);
   Tensor *params[] = {W1, b1, W2, b2};

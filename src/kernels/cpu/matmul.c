@@ -1,7 +1,7 @@
 #include "kernels/matmul.h"
 #include "kernels/cpu_utils.h"
 #include "kernels/pack.h"
-#include "kernels/transpose.h"
+#include "kernels/ops/shape.h"
 #include "core/tensor.h"
 #include <omp.h>
 #include <stdio.h>

@@ -182,9 +182,7 @@ class Tensor:
 
     def item(self):
         if np.prod(self.shape) != 1:
-            raise ValueError(
-                "only single-element tensors can be converted to Python scalars"
-            )
+            raise ValueError("only single-element tensors can be converted to Python scalars")
         return float(self.numpy().flatten()[0])
 
     def size(self):
@@ -208,9 +206,7 @@ class Tensor:
 
         is_param = isinstance(self, Parameter)
         meta, data = get_persistent_arenas() if is_param else get_arenas()
-        raw = tensor_init(
-            meta, data, device, self.dtype, list(self.shape), self.requires_grad
-        )
+        raw = tensor_init(meta, data, device, self.dtype, list(self.shape), self.requires_grad)
         raw.copy_from_numpy(self.numpy())
         t = Tensor.__new__(Parameter if is_param else Tensor)
         t._t = raw
@@ -235,45 +231,33 @@ class Tensor:
 
     def __add__(self, other):
         other = _to_tensor(other, self.device)
-        return _run_op(
-            [self, other], OpType.ADD, broadcast_shape(self.shape, other.shape)
-        )
+        return _run_op([self, other], OpType.ADD, broadcast_shape(self.shape, other.shape))
 
     def __radd__(self, other):
         return self.__add__(other)
 
     def __sub__(self, other):
         other = _to_tensor(other, self.device)
-        return _run_op(
-            [self, other], OpType.SUB, broadcast_shape(self.shape, other.shape)
-        )
+        return _run_op([self, other], OpType.SUB, broadcast_shape(self.shape, other.shape))
 
     def __rsub__(self, other):
         other = _to_tensor(other, self.device)
-        return _run_op(
-            [other, self], OpType.SUB, broadcast_shape(other.shape, self.shape)
-        )
+        return _run_op([other, self], OpType.SUB, broadcast_shape(other.shape, self.shape))
 
     def __mul__(self, other):
         other = _to_tensor(other, self.device)
-        return _run_op(
-            [self, other], OpType.MUL, broadcast_shape(self.shape, other.shape)
-        )
+        return _run_op([self, other], OpType.MUL, broadcast_shape(self.shape, other.shape))
 
     def __rmul__(self, other):
         return self.__mul__(other)
 
     def __truediv__(self, other):
         other = _to_tensor(other, self.device)
-        return _run_op(
-            [self, other], OpType.DIV, broadcast_shape(self.shape, other.shape)
-        )
+        return _run_op([self, other], OpType.DIV, broadcast_shape(self.shape, other.shape))
 
     def __rtruediv__(self, other):
         other = _to_tensor(other, self.device)
-        return _run_op(
-            [other, self], OpType.DIV, broadcast_shape(other.shape, self.shape)
-        )
+        return _run_op([other, self], OpType.DIV, broadcast_shape(other.shape, self.shape))
 
     def __neg__(self):
         return _run_op([self], OpType.NEG, list(self.shape))
@@ -453,9 +437,7 @@ class Tensor:
 
 
 class Parameter(Tensor):
-    def __init__(
-        self, data, *, device=Device.CPU, dtype=DType.Float32, requires_grad=True
-    ):
+    def __init__(self, data, *, device=Device.CPU, dtype=DType.Float32, requires_grad=True):
         if isinstance(data, _CTensor):
             self._t = data
         else:
