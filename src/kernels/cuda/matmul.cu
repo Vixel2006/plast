@@ -7,130 +7,229 @@
 #include <stdio.h>
 
 #define CEIL_DIV(a, b) (((a) + (b) - 1) / b)
-#define BLOCKSIZE 32
+
+#define TM 8
+#define TN 8
+#define BK 16
+#define BM 128
+#define BN 128
 
 __global__ void matmul_cuda_forward_contig_kernel(const float *a, const float *b, float *c,
-                                                  u64 batches, u64 rows, u64 inners, u64 cols) {
-  const u64 tx = threadIdx.x;
-  const u64 ty = threadIdx.y;
+                                                   u64 batches, u64 rows, u64 inners, u64 cols) {
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int bz = blockIdx.z;
 
-  const u64 col = blockIdx.x * BLOCKSIZE + tx;
-  const u64 row = blockIdx.y * BLOCKSIZE + ty;
-  const u64 batch = blockIdx.z;
+  __shared__ float a_shared[BM][BK + 1];
+  __shared__ float b_shared[BK][BN];
 
-  __shared__ float a_tiled[BLOCKSIZE][BLOCKSIZE];
-  __shared__ float b_tiled[BLOCKSIZE][BLOCKSIZE];
+  float c_reg[TM][TN] = {0.0f};
 
-  float accum = 0.0f;
+  long long a_base = (long long)bz * rows * inners;
+  long long b_base = (long long)bz * inners * cols;
+  long long c_base = (long long)bz * rows * cols;
 
-  for (u64 phase = 0; phase < inners; phase += BLOCKSIZE) {
-    if (row < rows && (phase + tx) < inners)
-      a_tiled[ty][tx] = a[batch * rows * inners + row * inners + (phase + tx)];
-    else
-      a_tiled[ty][tx] = 0.0f;
-    if ((phase + ty) < inners && col < cols)
-      b_tiled[ty][tx] = b[batch * inners * cols + (phase + ty) * cols + col];
-    else
-      b_tiled[ty][tx] = 0.0f;
+  for (int phase = 0; phase < inners; phase += BK) {
+    for (int i = 0; i < TM; ++i) {
+      int row = by * BM + ty * TM + i;
+      int col = phase + tx;
+      if (row < rows && col < inners)
+        a_shared[ty * TM + i][tx] = a[a_base + (long long)row * inners + col];
+      else
+        a_shared[ty * TM + i][tx] = 0.0f;
+    }
+
+    for (int i = 0; i < TN; ++i) {
+      int row = phase + ty;
+      int col = bx * BN + tx * TN + i;
+      if (row < inners && col < cols)
+        b_shared[ty][tx * TN + i] = b[b_base + (long long)row * cols + col];
+      else
+        b_shared[ty][tx * TN + i] = 0.0f;
+    }
 
     __syncthreads();
 
-    for (u64 k = 0; k < BLOCKSIZE; ++k) {
-      accum += a_tiled[ty][k] * b_tiled[k][tx];
+    for (int k = 0; k < BK; ++k) {
+      float a_reg[TM];
+      float b_reg[TN];
+
+      #pragma unroll
+      for (int i = 0; i < TM; ++i)
+        a_reg[i] = a_shared[ty * TM + i][k];
+
+      #pragma unroll
+      for (int j = 0; j < TN; ++j)
+        b_reg[j] = b_shared[k][tx * TN + j];
+
+      #pragma unroll
+      for (int i = 0; i < TM; ++i) {
+        float av = a_reg[i];
+        #pragma unroll
+        for (int j = 0; j < TN; ++j) {
+          c_reg[i][j] = fmaf(av, b_reg[j], c_reg[i][j]);
+        }
+      }
     }
 
     __syncthreads();
   }
 
-  if (row < rows && col < cols) {
-    c[batch * rows * cols + row * cols + col] = accum;
+  for (int i = 0; i < TM; ++i) {
+    for (int j = 0; j < TN; ++j) {
+      int row = by * BM + ty * TM + i;
+      int col = bx * BN + tx * TN + j;
+      if (row < rows && col < cols)
+        c[c_base + (long long)row * cols + col] = c_reg[i][j];
+    }
   }
 }
 
 __global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b, float *c, u64 batches,
                                               u64 rows, u64 inners, u64 cols) {
-  const u64 tx = threadIdx.x;
-  const u64 ty = threadIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int bz = blockIdx.z;
 
-  const u64 col = blockIdx.x * BLOCKSIZE + tx;
-  const u64 row = blockIdx.y * BLOCKSIZE + ty;
-  const u64 batch = blockIdx.z;
+  __shared__ float a_shared[BM][BK + 1];
+  __shared__ float b_shared[BK][BN];
 
-  __shared__ float a_tiled[BLOCKSIZE][BLOCKSIZE];
-  __shared__ float b_tiled[BLOCKSIZE][BLOCKSIZE];
+  float c_reg[TM][TN] = {0.0f};
 
-  float accum = 0.0f;
+  long long a_base = (long long)bz * rows * inners;
+  long long b_base = (long long)bz * inners * cols;
+  long long c_base = (long long)bz * rows * cols;
 
-  for (u64 phase = 0; phase < inners; phase += BLOCKSIZE) {
-    if (row < rows && (phase + tx) < inners)
-      a_tiled[ty][tx] = a[batch * rows * inners + row * inners + (phase + tx)];
-    else
-      a_tiled[ty][tx] = 0.0f;
+  for (int phase = 0; phase < inners; phase += BK) {
+    for (int i = 0; i < TM; ++i) {
+      int row = by * BM + ty * TM + i;
+      int col = phase + tx;
+      if (row < rows && col < inners)
+        a_shared[ty * TM + i][tx] = a[a_base + (long long)row * inners + col];
+      else
+        a_shared[ty * TM + i][tx] = 0.0f;
+    }
 
-    u64 B_row = blockIdx.x * BLOCKSIZE + tx;
-    u64 B_col = phase + ty;
-
-    if (B_row < cols && B_col < inners)
-      b_tiled[ty][tx] = b[batch * cols * inners + B_row * inners + B_col];
-    else
-      b_tiled[ty][tx] = 0.0f;
+    for (int i = 0; i < TN; ++i) {
+      int row = bx * BN + tx * TN + i;
+      int col = phase + ty;
+      if (row < cols && col < inners)
+        b_shared[ty][tx * TN + i] = b[b_base + (long long)row * inners + col];
+      else
+        b_shared[ty][tx * TN + i] = 0.0f;
+    }
 
     __syncthreads();
 
-    for (u64 k = 0; k < BLOCKSIZE; ++k) {
-      accum += a_tiled[ty][k] * b_tiled[k][tx];
+    for (int k = 0; k < BK; ++k) {
+      float a_reg[TM];
+      float b_reg[TN];
+
+      #pragma unroll
+      for (int i = 0; i < TM; ++i)
+        a_reg[i] = a_shared[ty * TM + i][k];
+
+      #pragma unroll
+      for (int j = 0; j < TN; ++j)
+        b_reg[j] = b_shared[k][tx * TN + j];
+
+      #pragma unroll
+      for (int i = 0; i < TM; ++i) {
+        float av = a_reg[i];
+        #pragma unroll
+        for (int j = 0; j < TN; ++j) {
+          c_reg[i][j] = fmaf(av, b_reg[j], c_reg[i][j]);
+        }
+      }
     }
 
     __syncthreads();
   }
 
-  if (row < rows && col < cols) {
-    c[batch * rows * cols + row * cols + col] = accum;
+  for (int i = 0; i < TM; ++i) {
+    for (int j = 0; j < TN; ++j) {
+      int row = by * BM + ty * TM + i;
+      int col = bx * BN + tx * TN + j;
+      if (row < rows && col < cols)
+        c[c_base + (long long)row * cols + col] = c_reg[i][j];
+    }
   }
 }
 
 __global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b, float *c, u64 batches,
                                               u64 rows, u64 inners, u64 cols) {
-  const u64 tx = threadIdx.x;
-  const u64 ty = threadIdx.y;
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int bx = blockIdx.x;
+  const int by = blockIdx.y;
+  const int bz = blockIdx.z;
 
-  const u64 col = blockIdx.x * BLOCKSIZE + tx;
-  const u64 row = blockIdx.y * BLOCKSIZE + ty;
-  const u64 batch = blockIdx.z;
+  __shared__ float a_shared[BM][BK + 1];
+  __shared__ float b_shared[BK][BN];
 
-  __shared__ float a_tiled[BLOCKSIZE][BLOCKSIZE];
-  __shared__ float b_tiled[BLOCKSIZE][BLOCKSIZE];
+  float c_reg[TM][TN] = {0.0f};
 
-  float accum = 0.0f;
+  long long a_base = (long long)bz * inners * rows;
+  long long b_base = (long long)bz * inners * cols;
+  long long c_base = (long long)bz * rows * cols;
 
-  for (u64 phase = 0; phase < inners; phase += BLOCKSIZE) {
-    u64 load_a_row = phase + tx;
-    u64 load_a_col = blockIdx.y * BLOCKSIZE + ty;
+  for (int phase = 0; phase < inners; phase += BK) {
+    for (int i = 0; i < TM; ++i) {
+      int row = phase + tx;
+      int col = by * BM + ty * TM + i;
+      if (row < inners && col < rows)
+        a_shared[ty * TM + i][tx] = a[a_base + (long long)row * rows + col];
+      else
+        a_shared[ty * TM + i][tx] = 0.0f;
+    }
 
-    if (load_a_row < inners && load_a_col < rows)
-      a_tiled[ty][tx] = a[batch * inners * rows + load_a_row * rows + load_a_col];
-    else
-      a_tiled[ty][tx] = 0.0f;
-
-    u64 load_b_row = phase + ty;
-    u64 load_b_col = blockIdx.x * BLOCKSIZE + tx;
-
-    if (load_b_row < inners && load_b_col < cols)
-      b_tiled[ty][tx] = b[batch * inners * cols + load_b_row * cols + load_b_col];
-    else
-      b_tiled[ty][tx] = 0.0f;
+    for (int i = 0; i < TN; ++i) {
+      int row = phase + ty;
+      int col = bx * BN + tx * TN + i;
+      if (row < inners && col < cols)
+        b_shared[ty][tx * TN + i] = b[b_base + (long long)row * cols + col];
+      else
+        b_shared[ty][tx * TN + i] = 0.0f;
+    }
 
     __syncthreads();
 
-    for (u64 k = 0; k < BLOCKSIZE; ++k) {
-      accum += a_tiled[ty][k] * b_tiled[k][tx];
+    for (int k = 0; k < BK; ++k) {
+      float a_reg[TM];
+      float b_reg[TN];
+
+      #pragma unroll
+      for (int i = 0; i < TM; ++i)
+        a_reg[i] = a_shared[ty * TM + i][k];
+
+      #pragma unroll
+      for (int j = 0; j < TN; ++j)
+        b_reg[j] = b_shared[k][tx * TN + j];
+
+      #pragma unroll
+      for (int i = 0; i < TM; ++i) {
+        float av = a_reg[i];
+        #pragma unroll
+        for (int j = 0; j < TN; ++j) {
+          c_reg[i][j] = fmaf(av, b_reg[j], c_reg[i][j]);
+        }
+      }
     }
 
     __syncthreads();
   }
 
-  if (row < rows && col < cols) {
-    c[batch * rows * cols + row * cols + col] = accum;
+  for (int i = 0; i < TM; ++i) {
+    for (int j = 0; j < TN; ++j) {
+      int row = by * BM + ty * TM + i;
+      int col = bx * BN + tx * TN + j;
+      if (row < rows && col < cols)
+        c[c_base + (long long)row * cols + col] = c_reg[i][j];
+    }
   }
 }
 
@@ -146,8 +245,8 @@ extern "C" void matmul_cuda_forward(const Tensor **inputs, Tensor *output, Kerne
   for (u64 i = 0; i < a->ndim - 2; ++i)
     batches *= a->shape[i];
 
-  dim3 block_dim(BLOCKSIZE, BLOCKSIZE, 1);
-  dim3 grid_dim(CEIL_DIV(N, BLOCKSIZE), CEIL_DIV(M, BLOCKSIZE), batches);
+  dim3 block_dim(BN / TN, BM / TM, 1);
+  dim3 grid_dim(CEIL_DIV(N, BN), CEIL_DIV(M, BM), batches);
 
   CudaTensorPack pa, pb;
   cuda_tensor_pack_init(&pa, a);
@@ -196,15 +295,16 @@ extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output, Kern
   if (!pdc.data)
     return;
 
+  dim3 opt_block(BN / TN, BM / TM, 1);
+
   switch (a->dtype) {
   case FLOAT32:
     if (a->requires_grad) {
       CudaTensorPack pb;
       cuda_tensor_pack_init(&pb, b);
       if (pb.data) {
-        dim3 block_dim_da(BLOCKSIZE, BLOCKSIZE, 1);
-        dim3 grid_dim_da(CEIL_DIV(K, BLOCKSIZE), CEIL_DIV(M, BLOCKSIZE), batches);
-        matmul_cuda_forward_nt_kernel<<<grid_dim_da, block_dim_da>>>(
+        dim3 grid_dim_da(CEIL_DIV(K, BN), CEIL_DIV(M, BM), batches);
+        matmul_cuda_forward_nt_kernel<<<grid_dim_da, opt_block>>>(
             (const float *)pdc.data, (const float *)pb.data, (float *)da->data, batches, M, N, K);
       }
       cuda_tensor_pack_release(&pb);
@@ -214,9 +314,8 @@ extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output, Kern
       CudaTensorPack pa;
       cuda_tensor_pack_init(&pa, a);
       if (pa.data) {
-        dim3 block_dim_db(BLOCKSIZE, BLOCKSIZE, 1);
-        dim3 grid_dim_db(CEIL_DIV(N, BLOCKSIZE), CEIL_DIV(K, BLOCKSIZE), batches);
-        matmul_cuda_forward_tn_kernel<<<grid_dim_db, block_dim_db>>>(
+        dim3 grid_dim_db(CEIL_DIV(N, BN), CEIL_DIV(K, BM), batches);
+        matmul_cuda_forward_tn_kernel<<<grid_dim_db, opt_block>>>(
             (const float *)pa.data, (const float *)pdc.data, (float *)db->data, batches, K, M, N);
       }
       cuda_tensor_pack_release(&pa);

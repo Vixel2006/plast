@@ -4,7 +4,7 @@ NVCC = nvcc
 
 # Flags
 CFLAGS  = -O3 -Wall -march=native -fopenmp -DCUDA_AVAILABLE
-NVFLAGS = -O3 -G -arch=sm_80
+NVFLAGS = -std=c++20 -enable-tile -O3 -G -arch=sm_80
 DEBUG = -g
 
 # includes
@@ -17,6 +17,9 @@ CU_SOURCES = $(wildcard src/core/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildc
 # Objects
 C_OBJS  = $(patsubst %.c, %.c.o, $(C_SOURCES))
 CU_OBJS = $(patsubst %.cu, %.cu.o, $(CU_SOURCES))
+
+# Prevent implicit make rules from trying to rebuild .cu source files from .cu.o
+%.cu: ;
 
 # Target
 TARGET = plastc
@@ -65,6 +68,27 @@ test-jit: $(JIT_TEST_BIN)
 
 $(JIT_TEST_BIN): $(JIT_TEST_SRC)
 	$(CC) $(JIT_CFLAGS) $< -o $@
+
+# Build & run the standalone matmul benchmark
+MATMUL_BENCH_SRC = src/kernels/cuda/matmul.cu
+MATMUL_BENCH_BIN = matmul_bench
+
+matmul_bench: $(MATMUL_BENCH_SRC)
+	$(NVCC) -std=c++20 -enable-tile -O3 -arch=sm_80 $(INCLUDES) -DMATMUL_BENCH -o $@ $<
+
+run-matmul-bench: matmul_bench
+	./$(MATMUL_BENCH_BIN)
+
+PROFILES_DIR = profiles
+NCU ?= ncu
+
+profile: matmul_bench | $(PROFILES_DIR)
+	$(NCU) -o $(PROFILES_DIR)/matmul --set full \
+		./$(MATMUL_BENCH_BIN) opt
+	@echo "Profile saved to $(PROFILES_DIR)/ — open with: ncu-ui $(PROFILES_DIR)/*.ncu-rep"
+
+$(PROFILES_DIR):
+	mkdir -p $@
 
 # Run tests
 test:

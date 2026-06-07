@@ -32,7 +32,7 @@ class custom_build_ext(build_ext):
 
         for src in cu_srcs:
             obj = src + ".o"
-            cmd = ["nvcc", "-O3", "-arch=sm_80", "-Xcompiler", "-fPIC", "-DCUDA_AVAILABLE"]
+            cmd = ["nvcc", "-std=c++20", "-enable-tile", "-O3", "-arch=sm_80", "-Xcompiler", "-fPIC", "-DCUDA_AVAILABLE"]
             for d in include_dirs:
                 cmd += ["-I", d]
             subprocess.check_call(cmd + ["-c", src, "-o", obj])
