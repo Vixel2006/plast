@@ -24,7 +24,7 @@ CU_OBJS = $(patsubst %.cu, %.cu.o, $(CU_SOURCES))
 # Target
 TARGET = plastc
 
-.PHONY: all full install test test-fast test-all test-jit clean format format-c format-py help
+.PHONY: all full install test test-fast test-all clean format format-c format-py help
 
 all: $(TARGET)
 
@@ -57,38 +57,6 @@ $(CU_OBJS): %.cu.o: %.cu
 install:
 	uv pip install setuptools pybind11 numpy --no-build-isolation
 	uv pip install -e . --no-build-isolation
-
-# Build & run the standalone JIT test (no CUDA needed)
-JIT_TEST_SRC = src/scheduler/jit.c
-JIT_TEST_BIN = jit_test
-JIT_CFLAGS = -O0 -g -DJIT_TEST $(INCLUDES)
-
-test-jit: $(JIT_TEST_BIN)
-	./$(JIT_TEST_BIN)
-
-$(JIT_TEST_BIN): $(JIT_TEST_SRC)
-	$(CC) $(JIT_CFLAGS) $< -o $@
-
-# Build & run the standalone matmul benchmark
-MATMUL_BENCH_SRC = src/kernels/cuda/matmul.cu
-MATMUL_BENCH_BIN = matmul_bench
-
-matmul_bench: $(MATMUL_BENCH_SRC)
-	$(NVCC) -std=c++20 -enable-tile -O3 -arch=sm_80 $(INCLUDES) -DMATMUL_BENCH -o $@ $<
-
-run-matmul-bench: matmul_bench
-	./$(MATMUL_BENCH_BIN)
-
-PROFILES_DIR = profiles
-NCU ?= ncu
-
-profile: matmul_bench | $(PROFILES_DIR)
-	$(NCU) -o $(PROFILES_DIR)/matmul --set full \
-		./$(MATMUL_BENCH_BIN) opt
-	@echo "Profile saved to $(PROFILES_DIR)/ — open with: ncu-ui $(PROFILES_DIR)/*.ncu-rep"
-
-$(PROFILES_DIR):
-	mkdir -p $@
 
 # Run tests
 test:
