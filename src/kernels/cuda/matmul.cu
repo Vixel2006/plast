@@ -15,7 +15,7 @@
 #define BN 128
 
 __global__ void matmul_cuda_forward_contig_kernel(const float *a, const float *b, float *c,
-                                                   u64 batches, u64 rows, u64 inners, u64 cols) {
+                                                  u64 batches, u64 rows, u64 inners, u64 cols) {
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
   const int bx = blockIdx.x;
@@ -56,18 +56,18 @@ __global__ void matmul_cuda_forward_contig_kernel(const float *a, const float *b
       float a_reg[TM];
       float b_reg[TN];
 
-      #pragma unroll
+#pragma unroll
       for (int i = 0; i < TM; ++i)
         a_reg[i] = a_shared[ty * TM + i][k];
 
-      #pragma unroll
+#pragma unroll
       for (int j = 0; j < TN; ++j)
         b_reg[j] = b_shared[k][tx * TN + j];
 
-      #pragma unroll
+#pragma unroll
       for (int i = 0; i < TM; ++i) {
         float av = a_reg[i];
-        #pragma unroll
+#pragma unroll
         for (int j = 0; j < TN; ++j) {
           c_reg[i][j] = fmaf(av, b_reg[j], c_reg[i][j]);
         }
@@ -129,18 +129,18 @@ __global__ void matmul_cuda_forward_nt_kernel(const float *a, const float *b, fl
       float a_reg[TM];
       float b_reg[TN];
 
-      #pragma unroll
+#pragma unroll
       for (int i = 0; i < TM; ++i)
         a_reg[i] = a_shared[ty * TM + i][k];
 
-      #pragma unroll
+#pragma unroll
       for (int j = 0; j < TN; ++j)
         b_reg[j] = b_shared[k][tx * TN + j];
 
-      #pragma unroll
+#pragma unroll
       for (int i = 0; i < TM; ++i) {
         float av = a_reg[i];
-        #pragma unroll
+#pragma unroll
         for (int j = 0; j < TN; ++j) {
           c_reg[i][j] = fmaf(av, b_reg[j], c_reg[i][j]);
         }
@@ -202,18 +202,18 @@ __global__ void matmul_cuda_forward_tn_kernel(const float *a, const float *b, fl
       float a_reg[TM];
       float b_reg[TN];
 
-      #pragma unroll
+#pragma unroll
       for (int i = 0; i < TM; ++i)
         a_reg[i] = a_shared[ty * TM + i][k];
 
-      #pragma unroll
+#pragma unroll
       for (int j = 0; j < TN; ++j)
         b_reg[j] = b_shared[k][tx * TN + j];
 
-      #pragma unroll
+#pragma unroll
       for (int i = 0; i < TM; ++i) {
         float av = a_reg[i];
-        #pragma unroll
+#pragma unroll
         for (int j = 0; j < TN; ++j) {
           c_reg[i][j] = fmaf(av, b_reg[j], c_reg[i][j]);
         }

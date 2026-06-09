@@ -177,7 +177,6 @@ class TestGradientCorrectness:
         expected = 1.0 / (np.cos(x_data) ** 2)
         np.testing.assert_allclose(x.grad.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="leaky_relu backward does not apply alpha factor")
     def test_leaky_relu_grad(self, device, tol, rng):
         x_data = rng.randn(3).astype(np.float32)
         x = plast.tensor(x_data, device=device, requires_grad=True)

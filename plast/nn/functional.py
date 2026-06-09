@@ -102,8 +102,31 @@ def batch_norm(
     ndim = input.ndim
     if ndim == 2:
         # [N, C]
-        reduction_dims = [0]
-        view_shape = [1, input.shape[1]]
+        if training:
+            mean = input.mean(dim=0, keepdim=True)
+            diff = input - mean
+            var = (diff * diff).mean(dim=0, keepdim=True)
+
+            mean_np = mean.numpy().flatten()
+            var_np = var.numpy().flatten()
+            running_mean.copy_from_numpy(
+                (1.0 - momentum) * running_mean.numpy() + momentum * mean_np
+            )
+            running_var.copy_from_numpy(
+                (1.0 - momentum) * running_var.numpy() + momentum * var_np
+            )
+        else:
+            mean = tensor(running_mean.numpy().reshape(1, input.shape[1]), device=input.device)
+            var = tensor(running_var.numpy().reshape(1, input.shape[1]), device=input.device)
+
+        std = ((var + eps).log() * 0.5).exp()
+        norm_input = (input - mean) / std
+
+        if weight is not None:
+            norm_input = norm_input * weight.view(1, input.shape[1])
+        if bias is not None:
+            norm_input = norm_input + bias.view(1, input.shape[1])
+        return norm_input
     elif ndim == 4:
         # [N, C, H, W]
         # In Plast, reduction is done per-dimension sequentially.
@@ -134,7 +157,7 @@ def batch_norm(
             mean = tensor(running_mean.numpy().reshape(C, 1), device=input.device)
             var = tensor(running_var.numpy().reshape(C, 1), device=input.device)
 
-        std = (var + eps).log().mul(0.5).exp()  # sqrt(var + eps)
+        std = ((var + eps).log() * 0.5).exp()  # sqrt(var + eps)
         norm_flat = (flat - mean) / std
 
         norm_permuted = norm_flat.reshape(C, N, H, W)
@@ -187,7 +210,7 @@ def mse_loss(input, target, reduction="mean"):
 
 
 def l1_loss(input, target, reduction="mean"):
-    diff = (input - target).abs()
+    diff = abs(input - target)
     if reduction == "mean":
         return diff.mean()
     elif reduction == "sum":
@@ -203,6 +226,15 @@ def cross_entropy(input, target, reduction="mean"):
     shifted_x = input - max_x
     log_sum_exp = shifted_x.exp().sum(dim=1, keepdim=True).log()
     log_soft = shifted_x - log_sum_exp
+
+    # If target is class indices (1D), convert to one-hot
+    if target.ndim == 1:
+        import numpy as np
+        num_classes = input.shape[1]
+        t_np = target.numpy().astype(np.int32)
+        one_hot_np = np.zeros((t_np.shape[0], num_classes), dtype=np.float32)
+        one_hot_np[np.arange(t_np.shape[0]), t_np] = 1.0
+        target = tensor(one_hot_np, device=input.device)
 
     loss = -(target * log_soft).sum(dim=1)
     if reduction == "mean":

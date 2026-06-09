@@ -32,7 +32,16 @@ class custom_build_ext(build_ext):
 
         for src in cu_srcs:
             obj = src + ".o"
-            cmd = ["nvcc", "-std=c++20", "-enable-tile", "-O3", "-arch=sm_80", "-Xcompiler", "-fPIC", "-DCUDA_AVAILABLE"]
+            cmd = [
+                "nvcc",
+                "-std=c++20",
+                "-enable-tile",
+                "-O3",
+                "-arch=sm_80",
+                "-Xcompiler",
+                "-fPIC",
+                "-DCUDA_AVAILABLE",
+            ]
             for d in include_dirs:
                 cmd += ["-I", d]
             subprocess.check_call(cmd + ["-c", src, "-o", obj])
@@ -110,6 +119,7 @@ cu_sources = [
     "src/kernels/cuda/cuda_tensor_init.cu",
     "src/kernels/cuda/matmul.cu",
     "src/kernels/cuda/reduce_ops.cu",
+    "src/kernels/cuda/shape_ops_cuda.cu",
     "src/optimizers/cuda/adam.cu",
     "src/optimizers/cuda/adamw.cu",
     "src/optimizers/cuda/sgd.cu",
