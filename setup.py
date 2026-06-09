@@ -119,6 +119,7 @@ cu_sources = [
     "src/kernels/cuda/cuda_tensor_init.cu",
     "src/kernels/cuda/matmul.cu",
     "src/kernels/cuda/reduce_ops.cu",
+    "src/kernels/cuda/shape_ops_cuda.cu",
     "src/optimizers/cuda/adam.cu",
     "src/optimizers/cuda/adamw.cu",
     "src/optimizers/cuda/sgd.cu",

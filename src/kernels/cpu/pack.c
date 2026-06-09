@@ -21,7 +21,7 @@ static void pack_to_buf(const Tensor *src, void *dst) {
   for (u64 i = 0; i < num_elements; ++i) {
     linear_to_coords(i, src->shape, src->ndim, coords);
     u64 src_offset = get_offset(coords, src->strides, src->ndim);
-    memcpy((u8 *)dst + i * element_size, (u8 *)src->data + src_offset, element_size);
+    memcpy((u8 *)dst + i * element_size, (u8 *)src->data + src_offset * element_size, element_size);
   }
 
   free(coords);

@@ -294,6 +294,115 @@ class TestLeakyReLU:
         np.testing.assert_allclose(tc.numpy(), expected, **tol)
 
 
+class TestConv2d:
+    def _conv2d_ref(self, x, w, stride=1):
+        N, C, H, W = x.shape
+        F, _, KH, KW = w.shape
+        H_out = (H - KH) // stride + 1
+        W_out = (W - KW) // stride + 1
+        out = np.zeros((N, F, H_out, W_out), dtype=np.float32)
+        for n in range(N):
+            for f in range(F):
+                for h in range(H_out):
+                    for wi in range(W_out):
+                        hs = h * stride
+                        ws = wi * stride
+                        out[n, f, h, wi] = np.sum(
+                            x[n, :, hs : hs + KH, ws : ws + KW] * w[f, :, :, :]
+                        )
+        return out
+
+    @pytest.mark.parametrize("N,C,H,W,F,KH,KW,stride", [
+        (2, 1, 8, 8, 2, 3, 3, 1),
+        (1, 3, 8, 8, 4, 1, 1, 1),
+        (1, 3, 8, 8, 4, 5, 5, 1),
+        (1, 3, 8, 8, 4, 3, 3, 2),
+        (2, 2, 10, 10, 3, 3, 3, 2),
+    ])
+    def test_conv2d_forward(self, N, C, H, W, F, KH, KW, stride, device, tol, rng):
+        x_np = rng.randn(N, C, H, W).astype(np.float32)
+        w_np = rng.randn(F, C, KH, KW).astype(np.float32)
+        x = plast.tensor(x_np, device=device)
+        w = plast.tensor(w_np, device=device)
+        out = plast.nn.functional.conv2d(x, w, stride=stride)
+        plast.forward(out)
+        expected = self._conv2d_ref(x_np, w_np, stride=stride)
+        np.testing.assert_allclose(out.numpy(), expected, **tol)
+
+    @pytest.mark.parametrize("N,C,H,W,F,KH,KW,stride", [
+        (1, 2, 8, 8, 3, 3, 3, 1),
+        (1, 1, 6, 6, 2, 3, 3, 2),
+    ])
+    def test_conv2d_forward_with_bias(self, N, C, H, W, F, KH, KW, stride, device, tol, rng):
+        x_np = rng.randn(N, C, H, W).astype(np.float32)
+        w_np = rng.randn(F, C, KH, KW).astype(np.float32)
+        bias_np = rng.randn(F).astype(np.float32)
+        x = plast.tensor(x_np, device=device)
+        w = plast.tensor(w_np, device=device)
+        bias = plast.tensor(bias_np, device=device)
+        out = plast.nn.functional.conv2d(x, w, bias, stride=stride)
+        plast.forward(out)
+        expected = self._conv2d_ref(x_np, w_np, stride=stride) + bias_np.reshape(1, F, 1, 1)
+        np.testing.assert_allclose(out.numpy(), expected, **tol)
+
+    @pytest.mark.parametrize("N,C,H,W,F,KH,KW,stride", [
+        (1, 2, 5, 5, 2, 3, 3, 1),
+    ])
+    def test_conv2d_backward(self, N, C, H, W, F, KH, KW, stride, device, tol, rng):
+        H_out = (H - KH) // stride + 1
+        W_out = (W - KW) // stride + 1
+
+        x_np = rng.randn(N, C, H, W).astype(np.float32)
+        w_np = rng.randn(F, C, KH, KW).astype(np.float32)
+        x = plast.tensor(x_np, device=device, requires_grad=True)
+        w = plast.tensor(w_np, device=device, requires_grad=True)
+        out = plast.nn.functional.conv2d(x, w, stride=stride)
+        loss = out.sum()
+        plast.forward(loss)
+        loss.backward()
+
+        assert x.grad is not None
+        assert w.grad is not None
+
+        # dL/dX[n,c,h,w] = sum_{f,kh,kw} W[f,c,kh,kw]
+        #   for all (kh,kw) where h-oh*stride=kh, w-ow*stride=kw
+        expected_x_grad = np.zeros_like(x_np)
+        for n in range(N):
+            for c in range(C):
+                for h in range(H):
+                    for wi in range(W):
+                        val = 0.0
+                        for f in range(F):
+                            for kh_i in range(KH):
+                                for kw_i in range(KW):
+                                    oh = h - kh_i
+                                    ow = wi - kw_i
+                                    if oh % stride == 0 and ow % stride == 0:
+                                        oh //= stride
+                                        ow //= stride
+                                        if 0 <= oh < H_out and 0 <= ow < W_out:
+                                            val += w_np[f, c, kh_i, kw_i]
+                        expected_x_grad[n, c, h, wi] = val
+
+        # dL/dW[f,c,kh,kw] = sum_{n,oh,ow} X[n,c,oh*stride+kh,ow*stride+kw]
+        expected_w_grad = np.zeros_like(w_np)
+        for f in range(F):
+            for c in range(C):
+                for kh_i in range(KH):
+                    for kw_i in range(KW):
+                        val = 0.0
+                        for n in range(N):
+                            for oh in range(H_out):
+                                for ow in range(W_out):
+                                    h = oh * stride + kh_i
+                                    wi = ow * stride + kw_i
+                                    val += x_np[n, c, h, wi]
+                        expected_w_grad[f, c, kh_i, kw_i] = val
+
+        np.testing.assert_allclose(x.grad.numpy(), expected_x_grad, **tol)
+        np.testing.assert_allclose(w.grad.numpy(), expected_w_grad, **tol)
+
+
 class TestOpsWithGradients:
     @pytest.mark.parametrize("shape", [(2, 3)])
     def test_add_backward(self, shape, device, rng):

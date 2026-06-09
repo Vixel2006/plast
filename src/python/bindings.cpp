@@ -16,7 +16,22 @@ extern "C" {
 #include "core/tensor.h"
 #include "scheduler/jit.h"
 #include "scheduler/scheduler.h"
+// CPU pack declarations
+typedef struct {
+  void *data;
+  void *_buf;
+} TensorPack;
+void tensor_pack_init(TensorPack *p, const Tensor *t);
+void tensor_pack_release(TensorPack *p);
 }
+
+// CUDA pack declarations
+typedef struct {
+  void *data;
+  void *_d_buf;
+} CudaTensorPack;
+void cuda_tensor_pack_init(CudaTensorPack *p, const Tensor *t);
+void cuda_tensor_pack_release(CudaTensorPack *p);
 
 namespace py = pybind11;
 
@@ -72,13 +87,34 @@ PYBIND11_MODULE(plast_core, m) {
 
              if (t.device == CUDA) {
 #ifdef CUDA_AVAILABLE
-               arena_memcpy_d2h_cuda(host_data.data(), t.data,
-                                     n * sizeof(float));
+               if (is_contiguous(&t)) {
+                 arena_memcpy_d2h_cuda(host_data.data(), t.data,
+                                       n * sizeof(float));
+               } else {
+                 CudaTensorPack p;
+                 cuda_tensor_pack_init(&p, &t);
+                 if (!p.data) {
+                   throw std::runtime_error("cuda_tensor_pack_init failed");
+                 }
+                 arena_memcpy_d2h_cuda(host_data.data(), p.data,
+                                       n * sizeof(float));
+                 cuda_tensor_pack_release(&p);
+               }
 #else
                 throw std::runtime_error("CUDA not available in this build");
 #endif
              } else {
-               memcpy(host_data.data(), t.data, n * sizeof(float));
+               if (is_contiguous(&t)) {
+                 memcpy(host_data.data(), t.data, n * sizeof(float));
+               } else {
+                 TensorPack p;
+                 tensor_pack_init(&p, &t);
+                 if (!p.data) {
+                   throw std::runtime_error("tensor_pack_init failed");
+                 }
+                 memcpy(host_data.data(), p.data, n * sizeof(float));
+                 tensor_pack_release(&p);
+               }
              }
 
              std::vector<ssize_t> shape;
