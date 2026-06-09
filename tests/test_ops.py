@@ -177,13 +177,12 @@ class TestReductionOps:
         expected = np.min(a)
         np.testing.assert_allclose(tc.numpy(), np.array([expected]), **tol)
 
-    @pytest.mark.xfail(reason="max with dim returns wrong output")
     @pytest.mark.parametrize("shape", [(2, 3), (3, 4)])
     def test_max_dim(self, shape, device, tol, rng):
         a = rng.randn(*shape).astype(np.float32)
         ta = plast.tensor(a, device=device)
         for dim in range(len(shape)):
-            tc = ta.max(dim=dim)
+            tc = ta.max(dim=dim, keepdim=True)
             plast.forward(tc)
             expected = np.max(a, axis=dim, keepdims=True)
             np.testing.assert_allclose(tc.numpy(), expected, **tol)
@@ -210,7 +209,6 @@ class TestMatmul:
 
 
 class TestShapeOps:
-    @pytest.mark.xfail(reason="view + element-wise op produces incorrect non-contiguous strides")
     @pytest.mark.parametrize("shape", [(2, 3, 4), (4, 6)])
     def test_view(self, shape, device, tol, rng):
         total = int(np.prod(shape))
@@ -222,7 +220,6 @@ class TestShapeOps:
         expected = a.reshape(shape[0], -1)
         np.testing.assert_allclose(tc.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="view with -1 produces incorrect output")
     def test_view_negative_one(self, device, tol, rng):
         a = rng.randn(2, 3, 4).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -230,7 +227,6 @@ class TestShapeOps:
         plast.forward(tc)
         np.testing.assert_allclose(tc.numpy(), a.reshape(2, -1), **tol)
 
-    @pytest.mark.xfail(reason="reshape (which calls view) produces incorrect output")
     def test_reshape(self, device, tol, rng):
         a = rng.randn(2, 6).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -238,7 +234,6 @@ class TestShapeOps:
         plast.forward(tc)
         np.testing.assert_allclose(tc.numpy(), a.reshape(3, 4), **tol)
 
-    @pytest.mark.xfail(reason="transpose produces incorrect output for 2D+ tensors")
     @pytest.mark.parametrize("shape", [(2, 3, 4), (4, 5)])
     def test_transpose(self, shape, device, tol, rng):
         a = rng.randn(*shape).astype(np.float32)
@@ -248,7 +243,6 @@ class TestShapeOps:
         expected = np.transpose(a, (1, 0, 2)) if len(shape) == 3 else a.T
         np.testing.assert_allclose(tc.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="squeeze with no dim doesn't remove all squeeze dims")
     def test_squeeze(self, device, tol, rng):
         a = rng.randn(1, 3, 1, 4).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -272,7 +266,6 @@ class TestShapeOps:
         expected = a.reshape(2, -1)
         np.testing.assert_allclose(tc.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="expand produces incorrect output")
     def test_expand(self, device, tol, rng):
         a = rng.randn(1, 3, 1).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -283,7 +276,6 @@ class TestShapeOps:
 
 
 class TestLeakyReLU:
-    @pytest.mark.xfail(reason="leaky_relu forward does not apply alpha factor")
     @pytest.mark.parametrize("shape", SHAPES)
     def test_leaky_relu_forward(self, shape, device, tol, rng):
         a = rng.randn(*shape).astype(np.float32)
@@ -430,7 +422,6 @@ class TestOpsWithGradients:
         np.testing.assert_allclose(ta.grad.numpy(), b, **tol)
         np.testing.assert_allclose(tb.grad.numpy(), a, **tol)
 
-    @pytest.mark.xfail(reason="matmul backward produces incorrect gradients")
     @pytest.mark.parametrize("m,n,p", [(2, 3, 4)])
     def test_matmul_backward(self, m, n, p, device, tol, rng):
         a = rng.randn(m, n).astype(np.float32)
@@ -441,5 +432,5 @@ class TestOpsWithGradients:
         loss = tc.sum()
         plast.forward(loss)
         loss.backward()
-        np.testing.assert_allclose(ta.grad.numpy(), np.ones((m, n)) @ b.T, **tol)
-        np.testing.assert_allclose(tb.grad.numpy(), a.T @ np.ones((n, p)), **tol)
+        np.testing.assert_allclose(ta.grad.numpy(), np.ones((m, p)) @ b.T, **tol)
+        np.testing.assert_allclose(tb.grad.numpy(), a.T @ np.ones((m, p)), **tol)

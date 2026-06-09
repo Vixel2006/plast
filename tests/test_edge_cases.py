@@ -105,7 +105,6 @@ class TestEdgeCases:
         np.testing.assert_allclose(tb.numpy(), a[np.newaxis, :, np.newaxis], **tol)
         assert tb.shape == [1, 3, 1]
 
-    @pytest.mark.xfail(reason="squeeze with no dim doesn't remove all squeeze dims")
     def test_squeeze_all(self, device, tol, rng):
         a = rng.randn(1, 3, 1, 4, 1).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -121,7 +120,6 @@ class TestEdgeCases:
         assert tb.shape == [3, 1, 4]
         np.testing.assert_allclose(tb.numpy(), a.reshape(3, 1, 4), **tol)
 
-    @pytest.mark.xfail(reason="negative dims in transpose not supported")
     def test_negative_index_transpose(self, device, tol, rng):
         a = rng.randn(2, 3, 4).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -130,7 +128,6 @@ class TestEdgeCases:
         expected = np.transpose(a, (0, 2, 1))
         np.testing.assert_allclose(tb.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="transpose produces incorrect output for 3D tensors")
     def test_transpose_positive_dims(self, device, tol, rng):
         a = rng.randn(2, 3, 4).astype(np.float32)
         ta = plast.tensor(a, device=device)
@@ -139,7 +136,6 @@ class TestEdgeCases:
         expected = np.transpose(a, (0, 2, 1))
         np.testing.assert_allclose(tb.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="view + element-wise op produces incorrect non-contiguous strides")
     def test_view_then_op(self, device, tol, rng):
         a = rng.randn(2, 6).astype(np.float32)
         ta = plast.tensor(a, device=device)

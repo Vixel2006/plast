@@ -48,7 +48,6 @@ class TestActivations:
         expected = np.tanh(x.numpy())
         np.testing.assert_allclose(out.numpy(), expected, atol=1e-3)
 
-    @pytest.mark.xfail(reason="leaky_relu forward does not apply alpha factor")
     def test_leaky_relu_module(self, device, tol, rng):
         lrelu = plast.nn.LeakyReLU(0.02)
         x = plast.tensor(rng.randn(2, 3).astype(np.float32), device=device)
@@ -57,7 +56,6 @@ class TestActivations:
         expected = np.where(x.numpy() > 0, x.numpy(), 0.02 * x.numpy())
         np.testing.assert_allclose(out.numpy(), expected, **tol)
 
-    @pytest.mark.xfail(reason="softmax uses max+keepdim which produces wrong dim output")
     def test_softmax(self, device, tol, rng):
         x = plast.tensor(rng.randn(2, 4).astype(np.float32), device=device)
         out = plast.nn.functional.softmax(x, dim=1)
@@ -81,7 +79,6 @@ class TestLossFunctions:
             expected = np.sum(diff**2)
         np.testing.assert_allclose(loss.numpy(), np.array([expected]), **tol)
 
-    @pytest.mark.xfail(reason="l1_loss uses .abs() which is not monkeypatched on Tensor")
     def test_l1_loss(self, device, tol, rng):
         pred = plast.tensor(rng.randn(4, 1).astype(np.float32), device=device)
         target = plast.tensor(rng.randn(4, 1).astype(np.float32), device=device)
@@ -99,7 +96,6 @@ class TestLossFunctions:
         expected = np.mean(np.abs(pred.numpy() - target.numpy()))
         np.testing.assert_allclose(loss.numpy(), np.array([expected]), **tol)
 
-    @pytest.mark.xfail(reason="cross_entropy target * log_soft broadcasting with class indices")
     def test_cross_entropy_loss(self, device, tol, rng):
         logits = plast.tensor(rng.randn(3, 5).astype(np.float32), device=device)
         targets_val = np.array([0, 2, 4], dtype=np.int32)
@@ -152,7 +148,6 @@ class TestSequential:
         model.load_state_dict(sd)
 
 
-@pytest.mark.xfail(reason="batch_norm uses eps scalar which creates 0-d tensor (segfault)")
 class TestNormalization:
     def test_batch_norm_forward(self, device, tol, rng):
         bn = plast.nn.BatchNorm1d(4, device=device)
@@ -194,7 +189,6 @@ class TestModuleUtilities:
         model.train()
         assert model.training
 
-    @pytest.mark.xfail(reason="model.zero_grad tries to import from wrong module")
     def test_module_zero_grad(self, device, rng):
         model = plast.nn.Linear(2, 2, device=device)
         x = plast.tensor(rng.randn(1, 2).astype(np.float32), device=device)
