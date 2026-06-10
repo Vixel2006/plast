@@ -7,6 +7,7 @@ DAG *alloc_dag(u32 capacity) {
   dag->nodes = malloc(sizeof(Node *) * capacity);
   dag->count = 0;
   dag->changed = false;
+  dag->arena = NULL;
 
   return dag;
 }

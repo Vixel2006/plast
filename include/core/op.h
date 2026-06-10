@@ -30,7 +30,10 @@ typedef enum OP_TYPE {
   MIN,
   MAX,
   SUM,
-  CONV2D
+  CONV2D,
+  MATMUL_RELU,
+  MATMUL_BIAS_RELU,
+  CONV_RELU
 } OP_TYPE;
 
 typedef struct Op {

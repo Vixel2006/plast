@@ -121,7 +121,7 @@ static void compute_tile_dims(u64 kh, u64 kw, u64 &TH, u64 &TW) {
   }
 }
 
-static void launch_im2col_cuda_float(const float *img, float *buffer, u64 N, u64 C, u64 H_in,
+void launch_im2col_cuda_float(const float *img, float *buffer, u64 N, u64 C, u64 H_in,
                                      u64 W_in, u64 kh, u64 kw, u64 stride, u64 img_stride_N,
                                      u64 img_stride_C, u64 img_stride_H, u64 img_stride_W) {
   const u64 H_out = (H_in - kh) / stride + 1;
@@ -142,7 +142,7 @@ static void launch_im2col_cuda_float(const float *img, float *buffer, u64 N, u64
                                                        img_stride_H, img_stride_W, TH, TW);
 }
 
-static void launch_col2im_cuda_float(const float *buffer, float *img, u64 N, u64 C, u64 H_in,
+void launch_col2im_cuda_float(const float *buffer, float *img, u64 N, u64 C, u64 H_in,
                                      u64 W_in, u64 kh, u64 kw, u64 stride, u64 img_stride_N,
                                      u64 img_stride_C, u64 img_stride_H, u64 img_stride_W) {
   const u64 H_out = (H_in - kh) / stride + 1;
