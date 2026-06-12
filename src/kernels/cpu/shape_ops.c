@@ -6,10 +6,9 @@
 
 #ifdef CUDA_AVAILABLE
 void reshape_backward_cuda(float *da, const float *dout, u64 num_elements);
-void transpose_backward_cuda(float *da, const float *dout,
-                             const u64 *a_shape, const u64 *da_strides,
-                             const u64 *dout_strides, u64 ndim,
-                             u64 axis1, u64 axis2, u64 num_elements);
+void transpose_backward_cuda(float *da, const float *dout, const u64 *a_shape,
+                             const u64 *da_strides, const u64 *dout_strides, u64 ndim, u64 axis1,
+                             u64 axis2, u64 num_elements);
 #endif
 
 static inline void reshape_backward_dispatch(Tensor *a, const Tensor *output, u64 num_elements) {
@@ -44,13 +43,13 @@ static inline void reshape_backward_dispatch(Tensor *a, const Tensor *output, u6
   }
 
 DEFINE_RESHAPE_OP(view, compute_view_strides, a->shape, a->strides, a->ndim, output->shape,
-                 output->ndim, output->strides)
+                  output->ndim, output->strides)
 DEFINE_RESHAPE_OP(flatten, compute_view_strides, a->shape, a->strides, a->ndim, output->shape,
-                 output->ndim, output->strides)
+                  output->ndim, output->strides)
 DEFINE_RESHAPE_OP(squeeze, compute_view_strides, a->shape, a->strides, a->ndim, output->shape,
-                 output->ndim, output->strides)
+                  output->ndim, output->strides)
 DEFINE_RESHAPE_OP(unsqueeze, compute_view_strides, a->shape, a->strides, a->ndim, output->shape,
-                 output->ndim, output->strides)
+                  output->ndim, output->strides)
 
 DEFINE_SHAPE_OP(expand, compute_expand_strides, a->shape, a->strides, a->ndim, output->shape,
                 output->ndim, output->strides)
@@ -91,9 +90,9 @@ void transpose_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams 
   u64 num_elements = numel(a);
   if (a->device == CUDA) {
 #ifdef CUDA_AVAILABLE
-    transpose_backward_cuda((float *)a->grad->data, (const float *)output->grad->data,
-                            a->shape, a->grad->strides, output->grad->strides, a->ndim,
-                            axis1, axis2, num_elements);
+    transpose_backward_cuda((float *)a->grad->data, (const float *)output->grad->data, a->shape,
+                            a->grad->strides, output->grad->strides, a->ndim, axis1, axis2,
+                            num_elements);
 #endif
   } else {
     float *da = (float *)a->grad->data;

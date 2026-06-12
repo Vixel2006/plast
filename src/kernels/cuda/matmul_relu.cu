@@ -16,8 +16,8 @@
 #define BN 128
 
 __global__ void matmul_relu_cuda_forward_contig_kernel(const float *a, const float *b, float *c,
-                                                        u64 batches, u64 rows, u64 inners,
-                                                        u64 cols, float alpha) {
+                                                       u64 batches, u64 rows, u64 inners, u64 cols,
+                                                       float alpha) {
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
   const int bx = blockIdx.x;
@@ -92,7 +92,7 @@ __global__ void matmul_relu_cuda_forward_contig_kernel(const float *a, const flo
 }
 
 extern "C" void matmul_relu_cuda_forward(const Tensor **inputs, Tensor *output,
-                                          KernelParams params) {
+                                         KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
   float alpha = params.fval;
@@ -120,8 +120,8 @@ extern "C" void matmul_relu_cuda_forward(const Tensor **inputs, Tensor *output,
   switch (a->dtype) {
   case FLOAT32:
     matmul_relu_cuda_forward_contig_kernel<<<grid_dim, block_dim>>>(
-        (const float *)pa.data, (const float *)pb.data, (float *)output->data,
-        batches, M, K, N, alpha);
+        (const float *)pa.data, (const float *)pb.data, (float *)output->data, batches, M, K, N,
+        alpha);
     break;
   default:
     fprintf(stderr, "Unsupported data type for matmul_relu_cuda_forward\n");
@@ -136,7 +136,7 @@ extern "C" void matmul_relu_cuda_forward(const Tensor **inputs, Tensor *output,
 // ─── Relu gradient modulation (used by all fused backward passes) ──────────
 
 __global__ void relu_grad_modulate_kernel(const float *dout, const float *out_data, float *dc,
-                                           u64 num_elements, float alpha) {
+                                          u64 num_elements, float alpha) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     float o = out_data[idx];
@@ -144,16 +144,16 @@ __global__ void relu_grad_modulate_kernel(const float *dout, const float *out_da
   }
 }
 
-extern "C" void launch_relu_grad_modulate_cuda(const float *dout, const float *out_data,
-                                                float *dc, u64 num_elements, float alpha,
-                                                int grid_size, int block_size) {
+extern "C" void launch_relu_grad_modulate_cuda(const float *dout, const float *out_data, float *dc,
+                                               u64 num_elements, float alpha, int grid_size,
+                                               int block_size) {
   relu_grad_modulate_kernel<<<grid_size, block_size>>>(dout, out_data, dc, num_elements, alpha);
 }
 
 // ─── Backward ───────────────────────────────────────────────────────────────
 
 extern "C" void matmul_relu_cuda_backward(Tensor **inputs, const Tensor *output,
-                                           KernelParams params) {
+                                          KernelParams params) {
   Tensor *a = inputs[0];
   Tensor *b = inputs[1];
   Tensor *da = a->grad;
@@ -181,8 +181,8 @@ extern "C" void matmul_relu_cuda_backward(Tensor **inputs, const Tensor *output,
   int block_size = 256;
   int grid_size = CEIL_DIV(num_elements, (u64)block_size);
 
-  launch_relu_grad_modulate_cuda((const float *)dc->data, (const float *)output->data,
-                                  dc_mod, num_elements, alpha, grid_size, block_size);
+  launch_relu_grad_modulate_cuda((const float *)dc->data, (const float *)output->data, dc_mod,
+                                 num_elements, alpha, grid_size, block_size);
 
   dim3 opt_block(BN / TN, BM / TM, 1);
 
@@ -193,8 +193,8 @@ extern "C" void matmul_relu_cuda_backward(Tensor **inputs, const Tensor *output,
       cuda_tensor_pack_init(&pb, b);
       if (pb.data) {
         dim3 grid_dim_da(CEIL_DIV(K, BN), CEIL_DIV(M, BM), batches);
-        launch_matmul_nt_cuda(dc_mod, (const float *)pb.data, (float *)da->data,
-                              batches, M, N, K, grid_dim_da, opt_block);
+        launch_matmul_nt_cuda(dc_mod, (const float *)pb.data, (float *)da->data, batches, M, N, K,
+                              grid_dim_da, opt_block);
       }
       cuda_tensor_pack_release(&pb);
     }
@@ -204,8 +204,8 @@ extern "C" void matmul_relu_cuda_backward(Tensor **inputs, const Tensor *output,
       cuda_tensor_pack_init(&pa, a);
       if (pa.data) {
         dim3 grid_dim_db(CEIL_DIV(N, BN), CEIL_DIV(K, BM), batches);
-        launch_matmul_tn_cuda((const float *)pa.data, dc_mod, (float *)db->data,
-                              batches, K, M, N, grid_dim_db, opt_block);
+        launch_matmul_tn_cuda((const float *)pa.data, dc_mod, (float *)db->data, batches, K, M, N,
+                              grid_dim_db, opt_block);
       }
       cuda_tensor_pack_release(&pa);
     }

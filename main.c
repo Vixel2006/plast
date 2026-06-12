@@ -160,7 +160,7 @@ int main() {
   Tensor *intermediates[] = {h1_mm,     h1,     h1_abs, h1_plus_abs, a1,
                              logits_mm, logits, diff,   sq_diff,     loss};
 
-  JIT *jit = init_jit(16);
+  JIT *jit = jit_create(16);
   Scheduler *scheduler = init_scheduler(jit);
 
   printf("Starting training on CUDA...\n");
@@ -173,7 +173,7 @@ int main() {
     zeros(h1_mm, numel(h1_mm));
     zeros(logits_mm, numel(logits_mm));
 
-    schedule(scheduler, n_loss, FORWARD);
+    schedule(scheduler, n_loss, FORWARD, &a);
 
     if (epoch % 2000 == 0) {
       float loss_val;
@@ -183,7 +183,7 @@ int main() {
     }
 
     set_ones_grad(loss);
-    schedule(scheduler, n_loss, BACKWARD);
+    schedule(scheduler, n_loss, BACKWARD, &a);
 
     sgd_step_cuda(&optimizer, params, 4);
   }

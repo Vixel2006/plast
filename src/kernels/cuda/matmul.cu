@@ -330,14 +330,14 @@ extern "C" void matmul_cuda_backward(Tensor **inputs, const Tensor *output, Kern
 
 // ─── Host-callable wrappers for NT/TN kernels (for use by fused ops) ────────
 
-extern "C" void launch_matmul_nt_cuda(const float *a, const float *b, float *c,
-                                       u64 batches, u64 rows, u64 inners, u64 cols,
-                                       dim3 grid_dim, dim3 block_dim) {
+extern "C" void launch_matmul_nt_cuda(const float *a, const float *b, float *c, u64 batches,
+                                      u64 rows, u64 inners, u64 cols, dim3 grid_dim,
+                                      dim3 block_dim) {
   matmul_cuda_forward_nt_kernel<<<grid_dim, block_dim>>>(a, b, c, batches, rows, inners, cols);
 }
 
-extern "C" void launch_matmul_tn_cuda(const float *a, const float *b, float *c,
-                                       u64 batches, u64 rows, u64 inners, u64 cols,
-                                       dim3 grid_dim, dim3 block_dim) {
+extern "C" void launch_matmul_tn_cuda(const float *a, const float *b, float *c, u64 batches,
+                                      u64 rows, u64 inners, u64 cols, dim3 grid_dim,
+                                      dim3 block_dim) {
   matmul_cuda_forward_tn_kernel<<<grid_dim, block_dim>>>(a, b, c, batches, rows, inners, cols);
 }

@@ -23,8 +23,8 @@ static inline float leaky_relu_grad(float x, float alpha) {
 // ─── matmul_relu_cpu_forward ────────────────────────────────────────────────
 
 static void matmul_relu_cpu_forward_float_contig_kernel(const float *a, const float *b, float *c,
-                                                        u64 batches, u64 rows, u64 inners,
-                                                        u64 cols, float alpha) {
+                                                        u64 batches, u64 rows, u64 inners, u64 cols,
+                                                        float alpha) {
 #pragma omp parallel for collapse(2) num_threads(8)
   for (u64 batch = 0; batch < batches; ++batch) {
     for (u64 row_tile = 0; row_tile < rows; row_tile += TILE_SIZE) {
@@ -96,11 +96,11 @@ void matmul_relu_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams
 
 // ─── matmul_relu_cpu_backward ───────────────────────────────────────────────
 
-void matmul_cpu_forward_float_nt_kernel(const float *a, const float *b, float *c,
-                                        u64 batches, u64 rows, u64 inners, u64 cols);
+void matmul_cpu_forward_float_nt_kernel(const float *a, const float *b, float *c, u64 batches,
+                                        u64 rows, u64 inners, u64 cols);
 
-void matmul_cpu_forward_float_tn_kernel(const float *a, const float *b, float *c,
-                                        u64 batches, u64 rows, u64 inners, u64 cols);
+void matmul_cpu_forward_float_tn_kernel(const float *a, const float *b, float *c, u64 batches,
+                                        u64 rows, u64 inners, u64 cols);
 
 static void relu_grad_modulate_contig_kernel(const float *dout, const float *out_data, float *dc,
                                              u64 num_elements, float alpha) {
@@ -134,8 +134,8 @@ void matmul_relu_cpu_backward(Tensor **inputs, const Tensor *output, KernelParam
   if (!dc_mod)
     return;
 
-  relu_grad_modulate_contig_kernel((const float *)dc->data, (const float *)output->data,
-                                   dc_mod, num_elements, alpha);
+  relu_grad_modulate_contig_kernel((const float *)dc->data, (const float *)output->data, dc_mod,
+                                   num_elements, alpha);
 
   if (a->requires_grad) {
     TensorPack pb;
@@ -268,8 +268,8 @@ void matmul_bias_relu_cpu_backward(Tensor **inputs, const Tensor *output, Kernel
   if (!dc_mod)
     return;
 
-  relu_grad_modulate_contig_kernel((const float *)dc->data, (const float *)output->data,
-                                   dc_mod, num_elements, alpha);
+  relu_grad_modulate_contig_kernel((const float *)dc->data, (const float *)output->data, dc_mod,
+                                   num_elements, alpha);
 
   if (a->requires_grad) {
     TensorPack pb;
@@ -391,8 +391,8 @@ void conv_relu_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams 
   float *dc_mod = (float *)malloc(numel_output * sizeof(float));
   if (!dc_mod)
     return;
-  relu_grad_modulate_contig_kernel((const float *)output->grad->data,
-                                   (const float *)output->data, dc_mod, numel_output, alpha);
+  relu_grad_modulate_contig_kernel((const float *)output->grad->data, (const float *)output->data,
+                                   dc_mod, numel_output, alpha);
 
   Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(flattened_kernel_view, 0, sizeof(Tensor));
@@ -408,8 +408,9 @@ void conv_relu_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams 
   // Gradient w.r.t. input
   u64 grad_im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
   u64 *grad_im2col_output_strides = compute_strides(grad_im2col_output_shape, 2);
-  Tensor *grad_im2col_output = arena_tensor_alloc(
-      a, a, grad_im2col_output_shape, 2, grad_im2col_output_strides, output->dtype, false, NULL, CPU);
+  Tensor *grad_im2col_output =
+      arena_tensor_alloc(a, a, grad_im2col_output_shape, 2, grad_im2col_output_strides,
+                         output->dtype, false, NULL, CPU);
   free(grad_im2col_output_strides);
 
   // Wrap dc_mod as a temporary Tensor for the matmul call
@@ -438,9 +439,8 @@ void conv_relu_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams 
   // Gradient w.r.t. kernel
   u64 im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
   u64 *im2col_output_strides = compute_strides(im2col_output_shape, 2);
-  Tensor *im2col_output =
-      arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides, a_input->dtype, false,
-                         NULL, CPU);
+  Tensor *im2col_output = arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides,
+                                             a_input->dtype, false, NULL, CPU);
   free(im2col_output_strides);
 
   im2col_cpu_float_kernel((float *)a_input->data, (float *)im2col_output->data, kernel_size_arr,

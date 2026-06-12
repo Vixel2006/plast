@@ -36,14 +36,11 @@ void matmul_bias_relu_cuda_backward(Tensor **inputs, const Tensor *output, Kerne
 #include <cuda_runtime.h>
 
 extern "C" {
-void launch_matmul_nt_cuda(const float *a, const float *b, float *c,
-                            u64 batches, u64 rows, u64 inners, u64 cols,
-                            dim3 grid_dim, dim3 block_dim);
-void launch_matmul_tn_cuda(const float *a, const float *b, float *c,
-                            u64 batches, u64 rows, u64 inners, u64 cols,
-                            dim3 grid_dim, dim3 block_dim);
-void launch_relu_grad_modulate_cuda(const float *dout, const float *out_data,
-                                     float *dc, u64 num_elements, float alpha,
-                                     int grid_size, int block_size);
+void launch_matmul_nt_cuda(const float *a, const float *b, float *c, u64 batches, u64 rows,
+                           u64 inners, u64 cols, dim3 grid_dim, dim3 block_dim);
+void launch_matmul_tn_cuda(const float *a, const float *b, float *c, u64 batches, u64 rows,
+                           u64 inners, u64 cols, dim3 grid_dim, dim3 block_dim);
+void launch_relu_grad_modulate_cuda(const float *dout, const float *out_data, float *dc,
+                                    u64 num_elements, float alpha, int grid_size, int block_size);
 }
 #endif

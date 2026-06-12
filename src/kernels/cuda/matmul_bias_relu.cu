@@ -16,9 +16,9 @@
 #define BN 128
 
 __global__ void matmul_bias_relu_cuda_forward_contig_kernel(const float *a, const float *b,
-                                                             const float *bias, float *c,
-                                                             u64 batches, u64 rows, u64 inners,
-                                                             u64 cols, float alpha) {
+                                                            const float *bias, float *c,
+                                                            u64 batches, u64 rows, u64 inners,
+                                                            u64 cols, float alpha) {
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
   const int bx = blockIdx.x;
@@ -93,7 +93,7 @@ __global__ void matmul_bias_relu_cuda_forward_contig_kernel(const float *a, cons
 }
 
 extern "C" void matmul_bias_relu_cuda_forward(const Tensor **inputs, Tensor *output,
-                                               KernelParams params) {
+                                              KernelParams params) {
   const Tensor *a = inputs[0];
   const Tensor *b = inputs[1];
   const Tensor *bias = inputs[2];
@@ -141,7 +141,7 @@ extern "C" void matmul_bias_relu_cuda_forward(const Tensor **inputs, Tensor *out
 // ─── Bias gradient kernel ──────────────────────────────────────────────────
 
 __global__ void bias_grad_reduce_kernel(const float *dc_mod, float *dbias, u64 num_elements,
-                                         u64 cols) {
+                                        u64 cols) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   u64 stride = blockDim.x * gridDim.x;
   for (u64 i = idx; i < num_elements; i += stride) {
@@ -151,7 +151,7 @@ __global__ void bias_grad_reduce_kernel(const float *dc_mod, float *dbias, u64 n
 }
 
 extern "C" void matmul_bias_relu_cuda_backward(Tensor **inputs, const Tensor *output,
-                                                KernelParams params) {
+                                               KernelParams params) {
   Tensor *a = inputs[0];
   Tensor *b = inputs[1];
   Tensor *bias = inputs[2];
@@ -181,10 +181,10 @@ extern "C" void matmul_bias_relu_cuda_backward(Tensor **inputs, const Tensor *ou
   int block_size = 256;
   int grid_size = CEIL_DIV(num_elements, (u64)block_size);
 
-  extern void launch_relu_grad_modulate_cuda(const float *, const float *, float *,
-                                              u64, float, int, int);
-  launch_relu_grad_modulate_cuda((const float *)dc->data, (const float *)output->data,
-                                  dc_mod, num_elements, alpha, grid_size, block_size);
+  extern void launch_relu_grad_modulate_cuda(const float *, const float *, float *, u64, float, int,
+                                             int);
+  launch_relu_grad_modulate_cuda((const float *)dc->data, (const float *)output->data, dc_mod,
+                                 num_elements, alpha, grid_size, block_size);
 
   dim3 opt_block(BN / TN, BM / TM, 1);
 
@@ -195,8 +195,8 @@ extern "C" void matmul_bias_relu_cuda_backward(Tensor **inputs, const Tensor *ou
       cuda_tensor_pack_init(&pb, b);
       if (pb.data) {
         dim3 grid_dim_da(CEIL_DIV(K, BN), CEIL_DIV(M, BM), batches);
-        launch_matmul_nt_cuda(dc_mod, (const float *)pb.data, (float *)da->data,
-                              batches, M, N, K, grid_dim_da, opt_block);
+        launch_matmul_nt_cuda(dc_mod, (const float *)pb.data, (float *)da->data, batches, M, N, K,
+                              grid_dim_da, opt_block);
       }
       cuda_tensor_pack_release(&pb);
     }
@@ -206,8 +206,8 @@ extern "C" void matmul_bias_relu_cuda_backward(Tensor **inputs, const Tensor *ou
       cuda_tensor_pack_init(&pa, a);
       if (pa.data) {
         dim3 grid_dim_db(CEIL_DIV(N, BN), CEIL_DIV(K, BM), batches);
-        launch_matmul_tn_cuda((const float *)pa.data, dc_mod, (float *)db->data,
-                              batches, K, M, N, grid_dim_db, opt_block);
+        launch_matmul_tn_cuda((const float *)pa.data, dc_mod, (float *)db->data, batches, K, M, N,
+                              grid_dim_db, opt_block);
       }
       cuda_tensor_pack_release(&pa);
     }

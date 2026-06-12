@@ -10,8 +10,7 @@
 
 #define CEIL_DIV(x, y) (((x) + (y) - 1) / (y))
 
-extern "C" void conv_relu_cuda_forward(const Tensor **inputs, Tensor *output,
-                                        KernelParams params) {
+extern "C" void conv_relu_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params) {
   Arena *a = (Arena *)params.dim;
   u64 stride = params.keepdim;
   float alpha = params.fval;
@@ -44,9 +43,8 @@ extern "C" void conv_relu_cuda_forward(const Tensor **inputs, Tensor *output,
                                              a_input->dtype, a_input->requires_grad, NULL, CUDA);
   free(im2col_output_strides);
 
-  launch_im2col_cuda_float((const float *)a_input->data, (float *)im2col_output->data,
-                           N, C, H_in, W_in, kh, kw, stride,
-                           a_input->strides[0], a_input->strides[1],
+  launch_im2col_cuda_float((const float *)a_input->data, (float *)im2col_output->data, N, C, H_in,
+                           W_in, kh, kw, stride, a_input->strides[0], a_input->strides[1],
                            a_input->strides[2], a_input->strides[3]);
   cudaDeviceSynchronize();
 
@@ -67,7 +65,7 @@ extern "C" void conv_relu_cuda_forward(const Tensor **inputs, Tensor *output,
 }
 
 extern "C" void conv_relu_cuda_backward(Tensor **inputs, const Tensor *output,
-                                         KernelParams params) {
+                                        KernelParams params) {
   Arena *a = (Arena *)params.dim;
   u64 stride = params.keepdim;
   float alpha = params.fval;
@@ -94,11 +92,10 @@ extern "C" void conv_relu_cuda_backward(Tensor **inputs, const Tensor *output,
   int block_size = 256;
   int grid_size = CEIL_DIV(numel_out, (u64)block_size);
 
-  extern void launch_relu_grad_modulate_cuda(const float *, const float *, float *,
-                                              u64, float, int, int);
-  launch_relu_grad_modulate_cuda((const float *)output->grad->data,
-                                  (const float *)output->data,
-                                  dc_mod, numel_out, alpha, grid_size, block_size);
+  extern void launch_relu_grad_modulate_cuda(const float *, const float *, float *, u64, float, int,
+                                             int);
+  launch_relu_grad_modulate_cuda((const float *)output->grad->data, (const float *)output->data,
+                                 dc_mod, numel_out, alpha, grid_size, block_size);
 
   Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
   memset(flattened_kernel_view, 0, sizeof(Tensor));
@@ -134,23 +131,20 @@ extern "C" void conv_relu_cuda_backward(Tensor **inputs, const Tensor *output,
     zeros(a_input->grad, numel(a_input->grad));
   }
 
-  launch_col2im_cuda_float((const float *)grad_im2col_output->data,
-                           (float *)a_input->grad->data,
-                           N, C, H_in, W_in, kh, kw, stride,
-                           a_input->strides[0], a_input->strides[1],
+  launch_col2im_cuda_float((const float *)grad_im2col_output->data, (float *)a_input->grad->data, N,
+                           C, H_in, W_in, kh, kw, stride, a_input->strides[0], a_input->strides[1],
                            a_input->strides[2], a_input->strides[3]);
   cudaDeviceSynchronize();
 
   // Gradient w.r.t. kernel
   u64 im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
   u64 *im2col_output_strides = compute_strides(im2col_output_shape, 2);
-  Tensor *im2col_output = arena_tensor_alloc(a, a, im2col_output_shape, 2,
-                                             im2col_output_strides, a_input->dtype, false, NULL, CUDA);
+  Tensor *im2col_output = arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides,
+                                             a_input->dtype, false, NULL, CUDA);
   free(im2col_output_strides);
 
-  launch_im2col_cuda_float((const float *)a_input->data, (float *)im2col_output->data,
-                           N, C, H_in, W_in, kh, kw, stride,
-                           a_input->strides[0], a_input->strides[1],
+  launch_im2col_cuda_float((const float *)a_input->data, (float *)im2col_output->data, N, C, H_in,
+                           W_in, kh, kw, stride, a_input->strides[0], a_input->strides[1],
                            a_input->strides[2], a_input->strides[3]);
   cudaDeviceSynchronize();
 
@@ -178,8 +172,7 @@ extern "C" void conv_relu_cuda_backward(Tensor **inputs, const Tensor *output,
   }
 
   cudaMemcpy(kernel->grad->data, grad_flattened_kernel->data,
-             numel(kernel->grad) * dtype_size(kernel->grad->dtype),
-             cudaMemcpyDeviceToDevice);
+             numel(kernel->grad) * dtype_size(kernel->grad->dtype), cudaMemcpyDeviceToDevice);
 
   cudaFree(dc_mod);
 }

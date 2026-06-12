@@ -31,9 +31,11 @@ static u32 try_match_ending_at(DAG *dag, u32 node_idx, FusionMatch *match) {
   switch (n->op_type) {
 
   case LEAKY_RELU: {
-    if (n->num_inputs != 1) return 0;
+    if (n->num_inputs != 1)
+      return 0;
     Node *producer = n->inputs[0]->creator;
-    if (!producer) return 0;
+    if (!producer)
+      return 0;
 
     if (producer->op_type == MATMUL) {
       // MATMUL -> LEAKY_RELU
@@ -49,17 +51,20 @@ static u32 try_match_ending_at(DAG *dag, u32 node_idx, FusionMatch *match) {
     if (producer->op_type == ADD) {
       // Check ADD's first input comes from MATMUL (bias case)
       Node *add = producer;
-      if (add->num_inputs < 2) return 0;
+      if (add->num_inputs < 2)
+        return 0;
       Node *add_lhs = add->inputs[0]->creator;
-      if (!add_lhs || add_lhs->op_type != MATMUL) return 0;
-      if (!is_bias_like(add->inputs[1])) return 0;
+      if (!add_lhs || add_lhs->op_type != MATMUL)
+        return 0;
+      if (!is_bias_like(add->inputs[1]))
+        return 0;
 
       // MATMUL -> ADD( bias ) -> LEAKY_RELU
       match->type = FUSION_MATMUL_BIAS_RELU;
       match->nodes = malloc(3 * sizeof(Node *));
-      match->nodes[0] = add_lhs;    // MATMUL
-      match->nodes[1] = add;        // ADD
-      match->nodes[2] = n;          // LEAKY_RELU
+      match->nodes[0] = add_lhs; // MATMUL
+      match->nodes[1] = add;     // ADD
+      match->nodes[2] = n;       // LEAKY_RELU
       match->num_nodes = 3;
       match->valid = true;
       return 1;
@@ -98,7 +103,7 @@ u32 fusion_find_patterns(DAG *dag, FusionMatch *matches, u32 max_matches) {
 }
 
 bool fusion_apply(DAG *dag, FusionMatch *match) {
-  Node *fused = malloc(sizeof(Node));
+  Node *fused = arena_alloc(dag->arena, sizeof(Node), 8);
   memset(fused, 0, sizeof(Node));
 
   switch (match->type) {
@@ -111,7 +116,7 @@ bool fusion_apply(DAG *dag, FusionMatch *match) {
     fused->inputs = mm->inputs;
     fused->num_inputs = mm->num_inputs;
     fused->output = relu->output;
-    fused->params = relu->params;  // preserves fval (alpha)
+    fused->params = relu->params; // preserves fval (alpha)
     break;
   }
 
@@ -121,7 +126,7 @@ bool fusion_apply(DAG *dag, FusionMatch *match) {
     Node *relu = match->nodes[2];
     fused->op_type = MATMUL_BIAS_RELU;
     fused->op = get_op_impl(MATMUL_BIAS_RELU);
-    fused->inputs = malloc(3 * sizeof(Tensor *));
+    fused->inputs = arena_alloc(dag->arena, 3 * sizeof(Tensor *), 8);
     fused->inputs[0] = mm->inputs[0];
     fused->inputs[1] = mm->inputs[1];
     fused->inputs[2] = add->inputs[1];
@@ -144,7 +149,6 @@ bool fusion_apply(DAG *dag, FusionMatch *match) {
   }
 
   default:
-    free(fused);
     return false;
   }
 
@@ -167,7 +171,6 @@ bool fusion_apply(DAG *dag, FusionMatch *match) {
 
   if (found != count) {
     free(indices);
-    free(fused);
     return false;
   }
 
@@ -175,7 +178,9 @@ bool fusion_apply(DAG *dag, FusionMatch *match) {
   for (u32 i = 0; i < count; ++i) {
     for (u32 j = i + 1; j < count; ++j) {
       if (indices[j] < indices[i]) {
-        u32 t = indices[i]; indices[i] = indices[j]; indices[j] = t;
+        u32 t = indices[i];
+        indices[i] = indices[j];
+        indices[j] = t;
       }
     }
   }
