@@ -167,79 +167,73 @@ void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
   u64 H_out = (H_in - kh) / stride + 1;
   u64 W_out = (W_in - kw) / stride + 1;
 
-  // 1. Gradient with respect to the input (a_input->grad)
-  // Create a temporary tensor to hold the flattened view of the kernel
-  Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
-  memset(flattened_kernel_view, 0, sizeof(Tensor));
-  flattened_kernel_view->ndim = 2;
-  flattened_kernel_view->shape[0] = kernel->shape[0];
-  flattened_kernel_view->shape[1] = kernel->shape[1] * kernel->shape[2] * kernel->shape[3];
-
-  Op flatten_op = get_op_impl(FLATTEN);
-  ForwardKernel flatten_kernel = forward_kernel_dispatcher(flatten_op, CPU);
-  const Tensor *flatten_inputs[1] = {kernel};
-  flatten_kernel(flatten_inputs, flattened_kernel_view, (KernelParams){0, 0});
-
-  u64 grad_im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
-  u64 *grad_im2col_output_strides = compute_strides(grad_im2col_output_shape, 2);
-  Tensor *grad_im2col_output = arena_tensor_alloc(
-      a, a, grad_im2col_output_shape, 2, grad_im2col_output_strides, output->dtype, false, NULL,
-      CPU); // grad_im2col_output does not require grad
-  free(grad_im2col_output_strides);
-
-  // output->grad is [N * H_out * W_out, F], flattened_kernel_view is [F, C * kh * kw]
-  // Performing matmul: grad_im2col_output = output->grad @ flattened_kernel_view
-  Op matmul_op = get_op_impl(MATMUL);
-  ForwardKernel matmul_kernel = forward_kernel_dispatcher(matmul_op, CPU);
-  const Tensor *matmul_inputs_grad_input[2] = {output->grad, flattened_kernel_view};
-  matmul_kernel(matmul_inputs_grad_input, grad_im2col_output, (KernelParams){0, 0});
-
-  // Ensure a_input->grad is zero-initialized before accumulation
-  if (a_input->grad) {
-    memset(a_input->grad->data, 0, numel(a_input->grad) * dtype_size(a_input->grad->dtype));
-  }
-
   u64 kernel_size_arr[2] = {kh, kw};
-  col2im_cpu_float_kernel((float *)grad_im2col_output->data, (float *)a_input->grad->data,
-                          kernel_size_arr, a_input->shape, a_input->strides, a_input->ndim, stride);
+
+  // 1. Gradient with respect to the input (a_input->grad)
+  if (a_input->requires_grad && a_input->grad) {
+    Tensor *flattened_kernel_view = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
+    memset(flattened_kernel_view, 0, sizeof(Tensor));
+    flattened_kernel_view->ndim = 2;
+    flattened_kernel_view->shape[0] = kernel->shape[0];
+    flattened_kernel_view->shape[1] = kernel->shape[1] * kernel->shape[2] * kernel->shape[3];
+
+    Op flatten_op = get_op_impl(FLATTEN);
+    ForwardKernel flatten_kernel = forward_kernel_dispatcher(flatten_op, CPU);
+    const Tensor *flatten_inputs[1] = {kernel};
+    flatten_kernel(flatten_inputs, flattened_kernel_view, (KernelParams){0, 0});
+
+    u64 grad_im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
+    u64 *grad_im2col_output_strides = compute_strides(grad_im2col_output_shape, 2);
+    Tensor *grad_im2col_output = arena_tensor_alloc(
+        a, a, grad_im2col_output_shape, 2, grad_im2col_output_strides, output->dtype, false, NULL,
+        CPU);
+    free(grad_im2col_output_strides);
+
+    Op matmul_op = get_op_impl(MATMUL);
+    ForwardKernel matmul_kernel = forward_kernel_dispatcher(matmul_op, CPU);
+    const Tensor *matmul_inputs_grad_input[2] = {output->grad, flattened_kernel_view};
+    matmul_kernel(matmul_inputs_grad_input, grad_im2col_output, (KernelParams){0, 0});
+
+    memset(a_input->grad->data, 0, numel(a_input->grad) * dtype_size(a_input->grad->dtype));
+    col2im_cpu_float_kernel((float *)grad_im2col_output->data, (float *)a_input->grad->data,
+                            kernel_size_arr, a_input->shape, a_input->strides, a_input->ndim, stride);
+  }
 
   // 2. Gradient with respect to the kernel (kernel->grad)
-  u64 im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
-  u64 *im2col_output_strides = compute_strides(im2col_output_shape, 2);
-  Tensor *im2col_output =
-      arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides, a_input->dtype, false,
-                         NULL, CPU); // im2col_output does not require grad
-  free(im2col_output_strides);
+  if (kernel->requires_grad && kernel->grad) {
+    u64 im2col_output_shape[2] = {N * H_out * W_out, C * kh * kw};
+    u64 *im2col_output_strides = compute_strides(im2col_output_shape, 2);
+    Tensor *im2col_output =
+        arena_tensor_alloc(a, a, im2col_output_shape, 2, im2col_output_strides, a_input->dtype,
+                           false, NULL, CPU);
+    free(im2col_output_strides);
 
-  im2col_cpu_float_kernel((float *)a_input->data, (float *)im2col_output->data, kernel_size_arr,
-                          a_input->shape, a_input->strides, a_input->ndim, stride);
+    im2col_cpu_float_kernel((float *)a_input->data, (float *)im2col_output->data, kernel_size_arr,
+                            a_input->shape, a_input->strides, a_input->ndim, stride);
 
-  Tensor *output_grad_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
-  memset(output_grad_transposed, 0, sizeof(Tensor));
+    Tensor *output_grad_transposed = (Tensor *)arena_alloc(a, sizeof(Tensor), 8);
+    memset(output_grad_transposed, 0, sizeof(Tensor));
 
-  Op transpose_op = get_op_impl(TRANSPOSE);
-  ForwardKernel transpose_kernel = forward_kernel_dispatcher(transpose_op, CPU);
-  const Tensor *transpose_inputs_output_grad[1] = {output->grad};
-  transpose_kernel(transpose_inputs_output_grad, output_grad_transposed, (KernelParams){0, 1});
+    Op transpose_op = get_op_impl(TRANSPOSE);
+    ForwardKernel transpose_kernel = forward_kernel_dispatcher(transpose_op, CPU);
+    const Tensor *transpose_inputs_output_grad[1] = {output->grad};
+    transpose_kernel(transpose_inputs_output_grad, output_grad_transposed, (KernelParams){0, 1});
 
-  u64 grad_flattened_kernel_shape[2] = {kernel->shape[0],
-                                        kernel->shape[1] * kernel->shape[2] * kernel->shape[3]};
-  u64 *grad_flattened_kernel_strides = compute_strides(grad_flattened_kernel_shape, 2);
-  Tensor *grad_flattened_kernel =
-      arena_tensor_alloc(a, a, grad_flattened_kernel_shape, 2, grad_flattened_kernel_strides,
-                         output->dtype, false, NULL,
-                         CPU); // grad_flattened_kernel does not require grad
-  free(grad_flattened_kernel_strides);
+    u64 grad_flattened_kernel_shape[2] = {kernel->shape[0],
+                                          kernel->shape[1] * kernel->shape[2] * kernel->shape[3]};
+    u64 *grad_flattened_kernel_strides = compute_strides(grad_flattened_kernel_shape, 2);
+    Tensor *grad_flattened_kernel =
+        arena_tensor_alloc(a, a, grad_flattened_kernel_shape, 2, grad_flattened_kernel_strides,
+                           output->dtype, false, NULL, CPU);
+    free(grad_flattened_kernel_strides);
 
-  const Tensor *matmul_inputs_grad_kernel[2] = {output_grad_transposed, im2col_output};
-  matmul_kernel(matmul_inputs_grad_kernel, grad_flattened_kernel, (KernelParams){0, 0});
+    Op matmul_op = get_op_impl(MATMUL);
+    ForwardKernel matmul_kernel = forward_kernel_dispatcher(matmul_op, CPU);
+    const Tensor *matmul_inputs_grad_kernel[2] = {output_grad_transposed, im2col_output};
+    matmul_kernel(matmul_inputs_grad_kernel, grad_flattened_kernel, (KernelParams){0, 0});
 
-  // Ensure kernel->grad is zero-initialized before accumulation
-  if (kernel->grad) {
     memset(kernel->grad->data, 0, numel(kernel->grad) * dtype_size(kernel->grad->dtype));
+    memcpy(kernel->grad->data, grad_flattened_kernel->data,
+           numel(kernel->grad) * dtype_size(kernel->grad->dtype));
   }
-
-  // Copy data from grad_flattened_kernel to kernel->grad
-  memcpy(kernel->grad->data, grad_flattened_kernel->data,
-         numel(kernel->grad) * dtype_size(kernel->grad->dtype));
 }
