@@ -1,0 +1,10 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: plast
+Description: Lightweight C tensor library with autograd
+Version: 0.1.1
+Libs: -L${libdir} -lplast -lm -lgomp
+Cflags: -I${includedir} -fopenmp

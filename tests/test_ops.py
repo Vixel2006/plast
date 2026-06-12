@@ -304,13 +304,16 @@ class TestConv2d:
                         )
         return out
 
-    @pytest.mark.parametrize("N,C,H,W,F,KH,KW,stride", [
-        (2, 1, 8, 8, 2, 3, 3, 1),
-        (1, 3, 8, 8, 4, 1, 1, 1),
-        (1, 3, 8, 8, 4, 5, 5, 1),
-        (1, 3, 8, 8, 4, 3, 3, 2),
-        (2, 2, 10, 10, 3, 3, 3, 2),
-    ])
+    @pytest.mark.parametrize(
+        "N,C,H,W,F,KH,KW,stride",
+        [
+            (2, 1, 8, 8, 2, 3, 3, 1),
+            (1, 3, 8, 8, 4, 1, 1, 1),
+            (1, 3, 8, 8, 4, 5, 5, 1),
+            (1, 3, 8, 8, 4, 3, 3, 2),
+            (2, 2, 10, 10, 3, 3, 3, 2),
+        ],
+    )
     def test_conv2d_forward(self, N, C, H, W, F, KH, KW, stride, device, tol, rng):
         x_np = rng.randn(N, C, H, W).astype(np.float32)
         w_np = rng.randn(F, C, KH, KW).astype(np.float32)
@@ -321,10 +324,13 @@ class TestConv2d:
         expected = self._conv2d_ref(x_np, w_np, stride=stride)
         np.testing.assert_allclose(out.numpy(), expected, **tol)
 
-    @pytest.mark.parametrize("N,C,H,W,F,KH,KW,stride", [
-        (1, 2, 8, 8, 3, 3, 3, 1),
-        (1, 1, 6, 6, 2, 3, 3, 2),
-    ])
+    @pytest.mark.parametrize(
+        "N,C,H,W,F,KH,KW,stride",
+        [
+            (1, 2, 8, 8, 3, 3, 3, 1),
+            (1, 1, 6, 6, 2, 3, 3, 2),
+        ],
+    )
     def test_conv2d_forward_with_bias(self, N, C, H, W, F, KH, KW, stride, device, tol, rng):
         x_np = rng.randn(N, C, H, W).astype(np.float32)
         w_np = rng.randn(F, C, KH, KW).astype(np.float32)
@@ -337,9 +343,12 @@ class TestConv2d:
         expected = self._conv2d_ref(x_np, w_np, stride=stride) + bias_np.reshape(1, F, 1, 1)
         np.testing.assert_allclose(out.numpy(), expected, **tol)
 
-    @pytest.mark.parametrize("N,C,H,W,F,KH,KW,stride", [
-        (1, 2, 5, 5, 2, 3, 3, 1),
-    ])
+    @pytest.mark.parametrize(
+        "N,C,H,W,F,KH,KW,stride",
+        [
+            (1, 2, 5, 5, 2, 3, 3, 1),
+        ],
+    )
     def test_conv2d_backward(self, N, C, H, W, F, KH, KW, stride, device, tol, rng):
         H_out = (H - KH) // stride + 1
         W_out = (W - KW) // stride + 1

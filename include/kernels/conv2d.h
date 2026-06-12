@@ -16,12 +16,25 @@ void col2im_cpu_float_kernel(float *buffer, float *img, u64 *kernel_size, const 
 void conv2d_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
 void conv2d_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
 
+void conv_relu_cpu_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void conv_relu_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams params);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void conv2d_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
 void conv2d_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
+
+void conv_relu_cuda_forward(const Tensor **inputs, Tensor *output, KernelParams params);
+void conv_relu_cuda_backward(Tensor **inputs, const Tensor *output, KernelParams params);
+
+void launch_im2col_cuda_float(const float *img, float *buffer, u64 N, u64 C, u64 H_in, u64 W_in,
+                              u64 kh, u64 kw, u64 stride, u64 img_stride_N, u64 img_stride_C,
+                              u64 img_stride_H, u64 img_stride_W);
+void launch_col2im_cuda_float(const float *buffer, float *img, u64 N, u64 C, u64 H_in, u64 W_in,
+                              u64 kh, u64 kw, u64 stride, u64 img_stride_N, u64 img_stride_C,
+                              u64 img_stride_H, u64 img_stride_W);
 
 #ifdef __cplusplus
 }

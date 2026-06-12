@@ -3,84 +3,198 @@ from . import functional as F
 
 
 class MSELoss(Module):
-    def __init__(self, reduction="mean"):
+    """Mean Squared Error loss: ``mean((input - target)²)``.
+
+    Args:
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.MSELoss()
+        loss = loss_fn(predictions, targets)
+    """
+
+    def __init__(self, reduction: str = "mean"):
         super().__init__()
         self.reduction = reduction
 
     def forward(self, input, target):
         return F.mse_loss(input, target, reduction=self.reduction)
 
+    def extra_repr(self) -> str:
+        return f"reduction='{self.reduction}'"
+
     def __repr__(self):
-        return f"MSELoss(reduction='{self.reduction}')"
+        return f"MSELoss({self.extra_repr()})"
 
 
 class L1Loss(Module):
-    def __init__(self, reduction="mean"):
+    """Mean Absolute Error (L1) loss: ``mean(|input - target|)``.
+
+    Args:
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.L1Loss()
+        loss = loss_fn(predictions, targets)
+    """
+
+    def __init__(self, reduction: str = "mean"):
         super().__init__()
         self.reduction = reduction
 
     def forward(self, input, target):
         return F.l1_loss(input, target, reduction=self.reduction)
 
+    def extra_repr(self) -> str:
+        return f"reduction='{self.reduction}'"
+
     def __repr__(self):
-        return f"L1Loss(reduction='{self.reduction}')"
+        return f"L1Loss({self.extra_repr()})"
+
+
+class SmoothL1Loss(Module):
+    """Huber / smooth-L1 loss.
+
+    Behaves like L2 for ``|x| < beta`` and like L1 otherwise, providing a
+    smooth transition at zero that is less sensitive to outliers than MSE.
+
+    Args:
+        beta:      Threshold at which the loss switches from L2 to L1 (default 1.0).
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.SmoothL1Loss(beta=0.5)
+    """
+
+    def __init__(self, beta: float = 1.0, reduction: str = "mean"):
+        super().__init__()
+        self.beta = beta
+        self.reduction = reduction
+
+    def forward(self, input, target):
+        return F.smooth_l1_loss(input, target, beta=self.beta, reduction=self.reduction)
+
+    def extra_repr(self) -> str:
+        return f"beta={self.beta}, reduction='{self.reduction}'"
+
+    def __repr__(self):
+        return f"SmoothL1Loss({self.extra_repr()})"
 
 
 class CrossEntropyLoss(Module):
-    def __init__(self, reduction="mean"):
+    """Cross-entropy loss combining log-softmax and NLL.
+
+    Accepts unnormalised logits directly — no need to apply softmax first.
+
+    Args:
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.CrossEntropyLoss()
+        loss = loss_fn(logits, targets)  # targets can be class indices [N] or one-hot [N, C]
+    """
+
+    def __init__(self, reduction: str = "mean"):
         super().__init__()
         self.reduction = reduction
 
     def forward(self, input, target):
         return F.cross_entropy(input, target, reduction=self.reduction)
 
+    def extra_repr(self) -> str:
+        return f"reduction='{self.reduction}'"
+
     def __repr__(self):
-        return f"CrossEntropyLoss(reduction='{self.reduction}')"
+        return f"CrossEntropyLoss({self.extra_repr()})"
+
+
+class NLLLoss(Module):
+    """Negative log-likelihood loss.
+
+    Expects *input* to be **log-probabilities** (e.g. output of
+    ``plast.nn.functional.log_softmax``).
+
+    Args:
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.NLLLoss()
+        log_probs = plast.nn.functional.log_softmax(logits, dim=-1)
+        loss = loss_fn(log_probs, targets)
+    """
+
+    def __init__(self, reduction: str = "mean"):
+        super().__init__()
+        self.reduction = reduction
+
+    def forward(self, input, target):
+        return F.nll_loss(input, target, reduction=self.reduction)
+
+    def extra_repr(self) -> str:
+        return f"reduction='{self.reduction}'"
+
+    def __repr__(self):
+        return f"NLLLoss({self.extra_repr()})"
 
 
 class BCELoss(Module):
-    def __init__(self, reduction="mean"):
+    """Binary Cross-Entropy loss.
+
+    Expects *input* to be probabilities (i.e., already passed through sigmoid).
+    Use :class:`BCEWithLogitsLoss` if your inputs are raw logits.
+
+    Args:
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.BCELoss()
+        probs = plast.nn.functional.sigmoid(logits)
+        loss = loss_fn(probs, targets)
+    """
+
+    def __init__(self, reduction: str = "mean"):
         super().__init__()
         self.reduction = reduction
 
     def forward(self, input, target):
-        # -mean(target * log(input) + (1 - target) * log(1 - input))
-        log_input = input.log()
-        one_minus_input = 1.0 - input
-        log_one_minus_input = one_minus_input.log()
+        return F.binary_cross_entropy(input, target, reduction=self.reduction)
 
-        loss = -(target * log_input + (1.0 - target) * log_one_minus_input)
-        if self.reduction == "mean":
-            return loss.mean()
-        elif self.reduction == "sum":
-            return loss.sum()
-        else:
-            return loss
+    def extra_repr(self) -> str:
+        return f"reduction='{self.reduction}'"
 
     def __repr__(self):
-        return f"BCELoss(reduction='{self.reduction}')"
+        return f"BCELoss({self.extra_repr()})"
 
 
 class BCEWithLogitsLoss(Module):
-    def __init__(self, reduction="mean"):
+    """BCE loss applied directly to raw logits (numerically more stable).
+
+    Combines sigmoid and BCE in a single numerically stable operation.
+
+    Args:
+        reduction: ``'mean'`` (default), ``'sum'``, or ``'none'``.
+
+    Example::
+
+        loss_fn = plast.nn.BCEWithLogitsLoss()
+        loss = loss_fn(logits, targets)  # no need to apply sigmoid first
+    """
+
+    def __init__(self, reduction: str = "mean"):
         super().__init__()
         self.reduction = reduction
 
     def forward(self, input, target):
-        # BCEWithLogitsLoss(x, y) = BCELoss(sigmoid(x), y)
-        sig = F.sigmoid(input)
+        return F.binary_cross_entropy_with_logits(input, target, reduction=self.reduction)
 
-        log_input = sig.log()
-        one_minus_input = 1.0 - sig
-        log_one_minus_input = one_minus_input.log()
-
-        loss = -(target * log_input + (1.0 - target) * log_one_minus_input)
-        if self.reduction == "mean":
-            return loss.mean()
-        elif self.reduction == "sum":
-            return loss.sum()
-        else:
-            return loss
+    def extra_repr(self) -> str:
+        return f"reduction='{self.reduction}'"
 
     def __repr__(self):
-        return f"BCEWithLogitsLoss(reduction='{self.reduction}')"
+        return f"BCEWithLogitsLoss({self.extra_repr()})"
