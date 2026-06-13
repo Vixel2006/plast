@@ -27,3 +27,6 @@ extern "C" void arena_memcpy_h2d_cuda(void *dest, const void *src, u64 size) {
 extern "C" void arena_memcpy_d2h_cuda(void *dest, const void *src, u64 size) {
   CUDA_CHECK_ERROR(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost));
 }
+extern "C" void arena_memcpy_d2d_cuda(void *dest, const void *src, u64 size) {
+  CUDA_CHECK_ERROR(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToDevice));
+}

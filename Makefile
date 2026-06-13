@@ -11,7 +11,7 @@ DEBUG = -g
 INCLUDES = -I./include -I./include/kernels/cuda -I/usr/local/cuda/include -I./include/optimizers -I./include/scheduler
 
 # Sources
-C_SOURCES  = $(wildcard src/core/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/optimizers/cpu/*.c) $(wildcard src/scheduler/*.c) $(wildcard *.c)
+C_SOURCES  = $(wildcard src/core/*.c) $(wildcard src/kernels/cpu/*.c) $(wildcard src/optimizers/cpu/*.c) $(wildcard src/scheduler/*.c) $(wildcard src/data/*.c) $(wildcard *.c)
 CU_SOURCES = $(wildcard src/core/*.cu) $(wildcard src/kernels/cuda/*.cu) $(wildcard src/optimizers/cuda/*.cu)
 
 # Objects
