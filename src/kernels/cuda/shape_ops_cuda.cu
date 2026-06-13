@@ -9,10 +9,9 @@ __global__ void reshape_backward_cuda_kernel(float *da, const float *dout, u64 n
   }
 }
 
-__global__ void transpose_backward_cuda_kernel(float *da, const float *dout,
-                                               const u64 *a_shape, const u64 *da_strides,
-                                               const u64 *dout_strides, u64 ndim,
-                                               u64 axis1, u64 axis2, u64 num_elements) {
+__global__ void transpose_backward_cuda_kernel(float *da, const float *dout, const u64 *a_shape,
+                                               const u64 *da_strides, const u64 *dout_strides,
+                                               u64 ndim, u64 axis1, u64 axis2, u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     u64 coords[MAX_NDIM];
@@ -43,10 +42,9 @@ void reshape_backward_cuda(float *da, const float *dout, u64 num_elements) {
   cudaDeviceSynchronize();
 }
 
-void transpose_backward_cuda(float *da, const float *dout,
-                             const u64 *a_shape, const u64 *da_strides,
-                             const u64 *dout_strides, u64 ndim,
-                             u64 axis1, u64 axis2, u64 num_elements) {
+void transpose_backward_cuda(float *da, const float *dout, const u64 *a_shape,
+                             const u64 *da_strides, const u64 *dout_strides, u64 ndim, u64 axis1,
+                             u64 axis2, u64 num_elements) {
   // Allocate shape and strides on GPU
   u64 *d_a_shape = NULL;
   u64 *d_da_strides = NULL;
@@ -62,12 +60,12 @@ void transpose_backward_cuda(float *da, const float *dout,
 
   u64 threads = 256;
   u64 blocks = (num_elements + threads - 1) / threads;
-  transpose_backward_cuda_kernel<<<blocks, threads>>>(da, dout, d_a_shape, d_da_strides, d_dout_strides, ndim, axis1, axis2, num_elements);
+  transpose_backward_cuda_kernel<<<blocks, threads>>>(
+      da, dout, d_a_shape, d_da_strides, d_dout_strides, ndim, axis1, axis2, num_elements);
   cudaDeviceSynchronize();
 
   cudaFree(d_dout_strides);
   cudaFree(d_da_strides);
   cudaFree(d_a_shape);
 }
-
 }

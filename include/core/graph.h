@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/node.h"
+#include "core/arena.h"
 
 #define MIN_DAG_CAPACITY 1
 
@@ -9,6 +10,7 @@ typedef struct DAG {
   u32 count;
   u32 capacity;
   bool changed;
+  Arena *arena;
 } DAG;
 
 DAG *alloc_dag(u32 capacity);

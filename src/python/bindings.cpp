@@ -197,6 +197,18 @@ PYBIND11_MODULE(plast_core, m) {
       backward(t.creator);
   });
 
+  m.def("execute_forward",
+        [](OP_TYPE op_type, std::vector<Tensor *> inputs, Tensor &output,
+           u64 dim, u64 keepdim, float fval, Arena &meta) {
+          KernelParams params = {dim, keepdim, fval};
+          if (op_type == CONV2D)
+            params.dim = (u64)&meta;
+          Op op = get_op_impl(op_type);
+          ForwardKernel k = output.device == CUDA ? op.cuda_forward
+                                                  : op.cpu_forward;
+          k((const Tensor **)inputs.data(), &output, params);
+        });
+
   // Optimizers
   py::class_<SGD>(m, "SGD")
       .def(py::init([](float lr) {
@@ -311,13 +323,13 @@ PYBIND11_MODULE(plast_core, m) {
   py::class_<Scheduler, std::unique_ptr<Scheduler, SchedulerDeleter>>(
       m, "Scheduler")
       .def(py::init([](u32 cap) {
-        JIT *jit = init_jit(cap);
+        JIT *jit = jit_create(cap);
         return std::unique_ptr<Scheduler, SchedulerDeleter>(
             init_scheduler(jit));
       }), py::arg("capacity"))
       .def("schedule",
-           [](Scheduler &self, Node *root, PASS pass) {
-             schedule(&self, root, pass);
+           [](Scheduler &self, Node *root, PASS pass, Arena *arena) {
+             schedule(&self, root, pass, arena);
            })
       .def("set_jit_mode",
            [](Scheduler &self, bool mode) {

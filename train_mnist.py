@@ -35,9 +35,13 @@ def _parse_idx(path):
 def load_mnist():
     os.makedirs(DATA_DIR, exist_ok=True)
 
-    train_imgs = _parse_idx(_download("train-images-idx3-ubyte.gz")).astype(np.float32) / 255.0
+    train_imgs = (
+        _parse_idx(_download("train-images-idx3-ubyte.gz")).astype(np.float32) / 255.0
+    )
     train_labels = _parse_idx(_download("train-labels-idx1-ubyte.gz"))
-    test_imgs = _parse_idx(_download("t10k-images-idx3-ubyte.gz")).astype(np.float32) / 255.0
+    test_imgs = (
+        _parse_idx(_download("t10k-images-idx3-ubyte.gz")).astype(np.float32) / 255.0
+    )
     test_labels = _parse_idx(_download("t10k-labels-idx1-ubyte.gz"))
 
     return train_imgs, train_labels, test_imgs, test_labels
@@ -59,8 +63,6 @@ def train():
 
     print(f"Train: {len(x_train)} samples, Test: {len(x_test)} samples")
 
-    plast.init_arenas(meta_size_mb=50, data_size_mb=500, device=DEVICE)
-
     model = plast.nn.Sequential(
         plast.nn.Linear(784, 128, device=DEVICE),
         plast.nn.ReLU(),
@@ -70,42 +72,39 @@ def train():
     optimizer = plast.optim.SGD(model.parameters(), lr=0.1)
 
     batch_size = 64
-    n_batches = len(x_train) // batch_size
+    
+    # Use clean, PyTorch-like DataLoader & Dataset API
+    train_dataset = plast.data.TensorDataset(x_train, y_train_onehot)
+    train_loader = plast.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, device=DEVICE)
+
+    test_dataset = plast.data.TensorDataset(x_test, y_test)
+    test_loader = plast.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, device=DEVICE)
 
     @plast.jit
-    def train_step(batch_idx):
-        X = plast.tensor(x_train[batch_idx], device=DEVICE)
-        Y = plast.tensor(y_train_onehot[batch_idx], device=DEVICE)
-
+    def train_step(X, Y):
         optimizer.zero_grad()
         pred = model(X)
         loss = loss_fn(pred, Y)
-        plast.forward(loss)
-        loss.backward()
+        loss.backward()  # Automatic forward realization!
         optimizer.step()
         return loss
 
     for epoch in range(5):
-        indices = np.random.permutation(len(x_train))
         epoch_loss = 0.0
 
-        for i in range(n_batches):
-            batch_idx = indices[i * batch_size : (i + 1) * batch_size]
+        for X, Y in train_loader:
+            loss = train_step(X, Y)
+            epoch_loss += loss.item()  # Automatic forward realization!
 
-            loss = train_step(batch_idx)
-            plast.reset_transient_arenas()
-
-            epoch_loss += loss.item()
-
-        print(f"Epoch {epoch}, Loss: {epoch_loss / n_batches:.6f}")
+        print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader):.6f}")
 
     print("\nEvaluating on test set...")
     correct = 0
-    for i in range(0, len(x_test), batch_size):
-        X = plast.tensor(x_test[i : i + batch_size], device=DEVICE)
-        pred = model(X)
-        plast.forward(pred)
-        correct += np.sum(np.argmax(pred.numpy(), axis=1) == y_test[i : i + batch_size])
+    with plast.no_grad():  # Use clean no_grad context manager
+        for X, Y in test_loader:
+            pred = model(X)
+            # Automatic forward realization on pred.numpy()!
+            correct += np.sum(np.argmax(pred.numpy(), axis=1) == Y.numpy().astype(int))
 
     acc = correct / len(x_test)
     print(f"Test Accuracy: {acc * 100:.2f}%")
