@@ -1,7 +1,7 @@
 import numpy as np
 from ..tensor import Tensor
-from ..plast_core import Device
-from .._internal import tensor
+from ..plast_core import Device, DataLoader as _CDataLoader
+from .._internal import tensor, get_arenas
 
 
 class DataLoader:
@@ -45,87 +45,112 @@ class DataLoader:
         self.device = device if device is not None else Device.CPU
         self._yielded_batches = []
 
+        self.use_c_loader = hasattr(dataset, "_c_dataset")
+        if self.use_c_loader:
+            dev = device if device is not None else Device.CPU
+            self._c_loader = _CDataLoader(
+                dataset._c_dataset,
+                batch_size,
+                shuffle,
+                drop_last,
+                dev,
+            )
+
     def __iter__(self):
-        import weakref
-        from .._internal import reset_transient_arenas
-
-        n = len(self.dataset)
-        indices = np.arange(n)
-        if self.shuffle:
-            np.random.shuffle(indices)
-
-        self._yielded_batches = []
-
-        for start_idx in range(0, n, self.batch_size):
-            if len(self._yielded_batches) > 1:
-                any_alive = False
-                for ref in self._yielded_batches[0]:
-                    if ref() is not None:
-                        any_alive = True
-                        break
-                if not any_alive:
-                    reset_transient_arenas()
-                    self._yielded_batches = self._yielded_batches[1:]
-
-            end_idx = start_idx + self.batch_size
-            if end_idx > n:
-                if self.drop_last:
+        if self.use_c_loader:
+            self._c_loader.reset()
+            meta, data = get_arenas()
+            while True:
+                batch = self._c_loader.next_batch(meta, data)
+                if batch is None:
                     break
-                end_idx = n
 
-            batch_indices = indices[start_idx:end_idx]
+                py_batch = [Tensor(t) for t in batch]
+                if len(py_batch) == 1:
+                    yield py_batch[0]
+                else:
+                    yield tuple(py_batch)
+        else:
+            import weakref
+            from .._internal import reset_transient_arenas
 
-            try:
-                # Fast vectorized path: retrieve and process the entire batch at once
-                batch_samples = self.dataset[batch_indices]
-                if not isinstance(batch_samples, tuple):
-                    batch_samples = (batch_samples,)
+            n = len(self.dataset)
+            indices = np.arange(n)
+            if self.shuffle:
+                np.random.shuffle(indices)
 
-                # Sanity check: confirm the first column has correct batch length
-                if len(batch_samples[0]) != len(batch_indices):
-                    raise ValueError("Batch size mismatch in fast path")
+            self._yielded_batches = []
 
-                batch_data = []
-                for col_data in batch_samples:
-                    if isinstance(col_data, Tensor):
-                        batch_data.append(col_data.to(self.device))
-                    else:
-                        arr = np.asarray(col_data, dtype=np.float32)
-                        batch_data.append(tensor(arr, device=self.device))
-            except Exception:
-                # Fallback to slow element-by-element path
-                samples = [self.dataset[i] for i in batch_indices]
+            for start_idx in range(0, n, self.batch_size):
+                if len(self._yielded_batches) > 1:
+                    any_alive = False
+                    for ref in self._yielded_batches[0]:
+                        if ref() is not None:
+                            any_alive = True
+                            break
+                    if not any_alive:
+                        reset_transient_arenas()
+                        self._yielded_batches = self._yielded_batches[1:]
 
-                # Support both tuple/list returns and single-value returns
-                if not isinstance(samples[0], (tuple, list)):
-                    samples = [(s,) for s in samples]
+                end_idx = start_idx + self.batch_size
+                if end_idx > n:
+                    if self.drop_last:
+                        break
+                    end_idx = n
 
-                num_outputs = len(samples[0])
-                batch_data = []
-                for col_idx in range(num_outputs):
-                    col_samples = [s[col_idx] for s in samples]
-                    col_np_list = []
-                    for s in col_samples:
-                        if isinstance(s, Tensor):
-                            col_np_list.append(s.numpy())
-                        elif isinstance(s, np.ndarray):
-                            col_np_list.append(s.astype(np.float32))
+                batch_indices = indices[start_idx:end_idx]
+
+                try:
+                    # Fast vectorized path: retrieve and process the entire batch at once
+                    batch_samples = self.dataset[batch_indices]
+                    if not isinstance(batch_samples, tuple):
+                        batch_samples = (batch_samples,)
+
+                    # Sanity check: confirm the first column has correct batch length
+                    if len(batch_samples[0]) != len(batch_indices):
+                        raise ValueError("Batch size mismatch in fast path")
+
+                    batch_data = []
+                    for col_data in batch_samples:
+                        if isinstance(col_data, Tensor):
+                            batch_data.append(col_data.to(self.device))
                         else:
-                            col_np_list.append(np.asarray(s, dtype=np.float32))
-                    col_stacked = np.stack(col_np_list, axis=0)
-                    batch_data.append(tensor(col_stacked, device=self.device))
+                            arr = np.asarray(col_data, dtype=np.float32)
+                            batch_data.append(tensor(arr, device=self.device))
+                except Exception:
+                    # Fallback to slow element-by-element path
+                    samples = [self.dataset[i] for i in batch_indices]
 
-            # Track weak references to yielded tensors
-            batch_refs = []
-            for t in batch_data:
-                if isinstance(t, Tensor):
-                    batch_refs.append(weakref.ref(t))
-            self._yielded_batches.append(batch_refs)
+                    # Support both tuple/list returns and single-value returns
+                    if not isinstance(samples[0], (tuple, list)):
+                        samples = [(s,) for s in samples]
 
-            if len(batch_data) == 1:
-                yield batch_data[0]
-            else:
-                yield tuple(batch_data)
+                    num_outputs = len(samples[0])
+                    batch_data = []
+                    for col_idx in range(num_outputs):
+                        col_samples = [s[col_idx] for s in samples]
+                        col_np_list = []
+                        for s in col_samples:
+                            if isinstance(s, Tensor):
+                                col_np_list.append(s.numpy())
+                            elif isinstance(s, np.ndarray):
+                                col_np_list.append(s.astype(np.float32))
+                            else:
+                                col_np_list.append(np.asarray(s, dtype=np.float32))
+                        col_stacked = np.stack(col_np_list, axis=0)
+                        batch_data.append(tensor(col_stacked, device=self.device))
+
+                # Track weak references to yielded tensors
+                batch_refs = []
+                for t in batch_data:
+                    if isinstance(t, Tensor):
+                        batch_refs.append(weakref.ref(t))
+                self._yielded_batches.append(batch_refs)
+
+                if len(batch_data) == 1:
+                    yield batch_data[0]
+                else:
+                    yield tuple(batch_data)
 
     def __len__(self) -> int:
         n = len(self.dataset)

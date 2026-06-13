@@ -16,6 +16,8 @@ extern "C" {
 #include "core/tensor.h"
 #include "scheduler/jit.h"
 #include "scheduler/scheduler.h"
+#include "data/dataset.h"
+#include "data/dataloader.h"
 // CPU pack declarations
 typedef struct {
   void *data;
@@ -337,4 +339,36 @@ PYBIND11_MODULE(plast_core, m) {
            [](Scheduler &self) {
              jit_clear(self.jit);
            });
+
+  struct TensorDatasetDeleter {
+    void operator()(TensorDataset *d) const { free_tensor_dataset(d); }
+  };
+
+  py::class_<TensorDataset, std::unique_ptr<TensorDataset, TensorDatasetDeleter>>(m, "TensorDataset")
+      .def(py::init([](std::vector<Tensor *> tensors) {
+        return std::unique_ptr<TensorDataset, TensorDatasetDeleter>(
+            create_tensor_dataset(tensors.data(), tensors.size()));
+      }))
+      .def_readonly("size", &TensorDataset::size)
+      .def_readonly("num_tensors", &TensorDataset::num_tensors)
+      .def("__len__", [](const TensorDataset &self) { return self.size; });
+
+  struct DataLoaderDeleter {
+    void operator()(DataLoader *l) const { free_dataloader(l); }
+  };
+
+  py::class_<DataLoader, std::unique_ptr<DataLoader, DataLoaderDeleter>>(m, "DataLoader")
+      .def(py::init([](TensorDataset &dataset, u64 batch_size, bool shuffle, bool drop_last, DEVICE device) {
+        return std::unique_ptr<DataLoader, DataLoaderDeleter>(
+            create_dataloader(&dataset, batch_size, shuffle, drop_last, device));
+      }))
+      .def("reset", &reset_dataloader_iterator)
+      .def("next_batch", [](DataLoader &self, Arena &meta_arena, Arena &data_arena) -> py::object {
+        std::vector<Tensor *> out_batches(self.dataset->num_tensors);
+        bool has_next = dataloader_next_batch(&self, &meta_arena, &data_arena, out_batches.data());
+        if (!has_next) {
+          return py::none();
+        }
+        return py::cast(out_batches);
+      });
 }
