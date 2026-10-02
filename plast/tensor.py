@@ -108,7 +108,7 @@ def _to_tensor(val, device):
         return Tensor(val)
     from ._internal import tensor as _make_tensor
 
-    return _make_tensor(val, device=device)
+    return _make_tensor(val, device=device, persistent=False)
 
 
 def _run_op(inputs, op_type, out_shape, dim=0, keepdim=0, fval=0.0, requires_grad=None):
@@ -339,6 +339,7 @@ class Tensor:
             self.numpy().copy(),
             device=self.device,
             requires_grad=self.requires_grad,
+            persistent=isinstance(self, Parameter),
         )
         return t
 
@@ -845,7 +846,7 @@ class Tensor:
         # Slice the numpy array and return a new tensor
         from ._internal import tensor as _make_tensor
 
-        return _make_tensor(self.numpy()[idx], device=self.device)
+        return _make_tensor(self.numpy()[idx], device=self.device, persistent=False)
 
 
 class Parameter(Tensor):

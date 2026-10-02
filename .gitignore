@@ -49,7 +49,3 @@ experiments/
 
 # PYPI rc file for secrets
 .pypirc
-
-# Zig build and cache
-zig-out/
-.zig-cache/

@@ -105,7 +105,7 @@ def reset_transient_arenas():
     sched.clear_jit()
 
 
-def tensor(data, device=Device.CPU, dtype=DType.Float32, requires_grad=False, persistent=False):
+def tensor(data, device=Device.CPU, dtype=DType.Float32, requires_grad=False, persistent=True):
     if persistent:
         meta, data_arena = get_persistent_arenas(device)
     else:

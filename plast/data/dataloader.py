@@ -116,7 +116,7 @@ class DataLoader:
                             batch_data.append(col_data.to(self.device))
                         else:
                             arr = np.asarray(col_data, dtype=np.float32)
-                            batch_data.append(tensor(arr, device=self.device))
+                            batch_data.append(tensor(arr, device=self.device, persistent=False))
                 except Exception:
                     # Fallback to slow element-by-element path
                     samples = [self.dataset[i] for i in batch_indices]
@@ -138,7 +138,7 @@ class DataLoader:
                             else:
                                 col_np_list.append(np.asarray(s, dtype=np.float32))
                         col_stacked = np.stack(col_np_list, axis=0)
-                        batch_data.append(tensor(col_stacked, device=self.device))
+                        batch_data.append(tensor(col_stacked, device=self.device, persistent=False))
 
                 # Track weak references to yielded tensors
                 batch_refs = []
