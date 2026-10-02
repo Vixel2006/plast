@@ -31,14 +31,14 @@ static inline bool shapes_equal_host(const u64 *shape1, u64 ndim1, const u64 *sh
 }
 
 #define DEFINE_CUDA_BINARY_KERNELS(op_name, OP_EXPR, GRAD_A_EXPR, GRAD_B_EXPR)                     \
-  __global__ void op_name##_cuda_forward_float_contig_kernel(const float *a, const float *b,       \
+  extern "C" __global__ void op_name##_cuda_forward_float_contig_kernel(const float *a, const float *b,       \
                                                              float *c, u64 num_elements) {         \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
     if (idx < num_elements) {                                                                      \
       c[idx] = OP_EXPR(a[idx], b[idx]);                                                            \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_forward_float_non_contig_kernel(                                  \
+  extern "C" __global__ void op_name##_cuda_forward_float_non_contig_kernel(                                  \
       const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim,                   \
       const float *b_data, const u64 *b_strides, const u64 *b_shape, u64 b_ndim, float *c_data,    \
       const u64 *c_strides, const u64 *c_shape, u64 c_ndim, u64 num_elements) {                    \
@@ -52,7 +52,7 @@ static inline bool shapes_equal_host(const u64 *shape1, u64 ndim1, const u64 *sh
       c_data[c_offset] = OP_EXPR(a_data[a_offset], b_data[b_offset]);                              \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_backward_float_contig_kernel(                                     \
+  extern "C" __global__ void op_name##_cuda_backward_float_contig_kernel(                                     \
       const float *dout, const float *a, const float *b, float *da, float *db, u64 num_elements) { \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
     if (idx < num_elements) {                                                                      \
@@ -64,7 +64,7 @@ static inline bool shapes_equal_host(const u64 *shape1, u64 ndim1, const u64 *sh
       }                                                                                            \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_backward_float_non_contig_kernel(                                 \
+  extern "C" __global__ void op_name##_cuda_backward_float_non_contig_kernel(                                 \
       const float *dout_data, const u64 *dout_strides, const u64 *dout_shape, u64 dout_ndim,       \
       const float *a_data, const u64 *a_strides, const u64 *a_shape, u64 a_ndim,                   \
       const float *b_data, const u64 *b_strides, const u64 *b_shape, u64 b_ndim, float *da_data,   \

@@ -108,13 +108,13 @@ def _to_tensor(val, device):
         return Tensor(val)
     from ._internal import tensor as _make_tensor
 
-    return _make_tensor(val, device=device)
+    return _make_tensor(val, device=device, persistent=False)
 
 
 def _run_op(inputs, op_type, out_shape, dim=0, keepdim=0, fval=0.0, requires_grad=None):
-    meta, data = get_arenas()
     raw_inputs = _unwrap_many(inputs)
     device = raw_inputs[0].device
+    meta, data = get_arenas(device)
 
     if _no_grad_active:
         raw_out = tensor_init(meta, data, device, DType.Float32, out_shape, False)
@@ -339,6 +339,7 @@ class Tensor:
             self.numpy().copy(),
             device=self.device,
             requires_grad=self.requires_grad,
+            persistent=isinstance(self, Parameter),
         )
         return t
 
@@ -347,7 +348,7 @@ class Tensor:
 
         The returned tensor has ``requires_grad=False`` and no creator node.
         """
-        meta, data = get_arenas()
+        meta, data = get_arenas(self.device)
         raw = tensor_init(meta, data, self.device, self.dtype, list(self.shape), False)
         raw.copy_from_numpy(self.numpy())
         return Tensor(raw)
@@ -397,7 +398,7 @@ class Tensor:
         from ._internal import get_arenas, get_persistent_arenas
 
         is_param = isinstance(self, Parameter)
-        meta, data = get_persistent_arenas() if is_param else get_arenas()
+        meta, data = get_persistent_arenas(device) if is_param else get_arenas(device)
         raw = tensor_init(meta, data, device, self.dtype, list(self.shape), self.requires_grad)
         raw.copy_from_numpy(self.numpy())
         t = Tensor.__new__(Parameter if is_param else Tensor)
@@ -420,7 +421,7 @@ class Tensor:
         if self._realized:
             return
         if self.creator:
-            meta, _ = get_arenas()
+            meta, _ = get_arenas(self.device)
             _get_scheduler().schedule(self.creator, Pass.FORWARD, meta)
         self._realized = True
 
@@ -440,7 +441,7 @@ class Tensor:
         self.forward()
         set_ones_grad(_unwrap(self))
         if self.creator:
-            meta, _ = get_arenas()
+            meta, _ = get_arenas(self.device)
             _get_scheduler().schedule(self.creator, Pass.BACKWARD, meta)
 
     def realize(self) -> None:
@@ -845,7 +846,7 @@ class Tensor:
         # Slice the numpy array and return a new tensor
         from ._internal import tensor as _make_tensor
 
-        return _make_tensor(self.numpy()[idx], device=self.device)
+        return _make_tensor(self.numpy()[idx], device=self.device, persistent=False)
 
 
 class Parameter(Tensor):

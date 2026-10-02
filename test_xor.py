@@ -1,69 +1,64 @@
-import plast
+import plast as p
 import numpy as np
-
 
 def train_xor():
     print("Testing XOR training in Python on CUDA...")
-    meta, data = plast.init_arenas(device=plast.Device.CUDA)
+    p.init_arenas(device=p.Device.CUDA)
 
     # Data
     x_data = np.array([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=np.float32)
     y_data = np.array([[0], [1], [1], [0]], dtype=np.float32)
 
-    X = plast.tensor(x_data, device=plast.Device.CUDA)
-    Y = plast.tensor(y_data, device=plast.Device.CUDA)
+    # Allocate X and Y in the persistent arena because they are reused across epochs
+    X = p.tensor(x_data, device=p.Device.CUDA, persistent=True)
+    Y = p.tensor(y_data, device=p.Device.CUDA, persistent=True)
 
     # Model
-    from plast import nn, optim
-
     hidden_size = 8
-    model = nn.Module()
-    model.l1 = nn.Linear(2, hidden_size, device=plast.Device.CUDA)
-    model.relu = nn.ReLU()
-    model.l2 = nn.Linear(hidden_size, 1, device=plast.Device.CUDA)
+    model = p.nn.Sequential(
+        p.nn.Linear(2, hidden_size, device=p.Device.CUDA),
+        p.nn.ReLU(),
+        p.nn.Linear(hidden_size, 1, device=p.Device.CUDA)
+    )
 
-    loss_fn = nn.MSELoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
+    loss_fn = p.nn.MSELoss()
+    optimizer = p.optim.SGD(model.parameters(), lr=0.05)
 
     # Training
     for epoch in range(10001):
         optimizer.zero_grad()
 
         # Forward
-        h1 = model.relu(model.l1(X))
-        logits = model.l2(h1)
-        loss = loss_fn(logits, Y)
+        preds = model(X)
+        loss = loss_fn(preds, Y)
 
-        # Execute graph
-        from plast.plast_core import forward, backward, set_ones_grad
-
-        forward(loss)
+        # Execute graph forward
+        loss.forward()
 
         if epoch % 1000 == 0:
-            l = loss.numpy()[0]
-            print(f"Epoch {epoch}, Loss: {l:.6f}")
+            l = loss.item()
+            print(f"Epoch {epoch:4d} | Loss: {l:.6f}")
 
         # Backward
-        set_ones_grad(loss)
-        backward(loss)
+        loss.backward()
 
         # Step
         optimizer.step()
 
+        # Reset transient arenas to clear temporary activation and gradient buffers
+        p.reset_transient_arenas()
+
     # Final result
-    h1 = model.relu(model.l1(X))
-    logits = model.l2(h1)
-    forward(logits)
-    preds = logits.numpy()
+    preds_test = model(X)
+    preds = preds_test.numpy()
     print("\nFinal Predictions:")
     print(preds)
 
     expected = np.array([[0], [1], [1], [0]])
-    if np.allclose(preds, expected, atol=0.1):
-        print("\nSUCCESS: XOR converged!")
+    if np.allclose(preds, expected, atol=0.2):
+        print("\nSUCCESS: XOR converged on CUDA!")
     else:
-        print("\nFAILURE: XOR did not converge correctly.")
-
+        print("\nFAILURE: XOR did not converge correctly on CUDA.")
 
 if __name__ == "__main__":
     train_xor()

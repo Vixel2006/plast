@@ -63,6 +63,10 @@ def train():
 
     print(f"Train: {len(x_train)} samples, Test: {len(x_test)} samples")
 
+    # 1. Initialize arenas on the target device
+    # Memory size is default (64MB metadata, 512MB data) which fits MNIST comfortably
+    plast.init_arenas(device=DEVICE)
+
     model = plast.nn.Sequential(
         plast.nn.Linear(784, 128, device=DEVICE),
         plast.nn.ReLU(),
@@ -96,6 +100,9 @@ def train():
             loss = train_step(X, Y)
             epoch_loss += loss.item()  # Automatic forward realization!
 
+            # Clear intermediate activations/gradients in transient memory
+            plast.reset_transient_arenas()
+
         print(f"Epoch {epoch}, Loss: {epoch_loss / len(train_loader):.6f}")
 
     print("\nEvaluating on test set...")
@@ -105,6 +112,7 @@ def train():
             pred = model(X)
             # Automatic forward realization on pred.numpy()!
             correct += np.sum(np.argmax(pred.numpy(), axis=1) == Y.numpy().astype(int))
+            plast.reset_transient_arenas()
 
     acc = correct / len(x_test)
     print(f"Test Accuracy: {acc * 100:.2f}%")

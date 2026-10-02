@@ -159,3 +159,126 @@ void matmul_cpu_backward(Tensor **inputs, const Tensor *output, KernelParams par
 
   tensor_pack_release(&pdc);
 }
+
+void matmul_cpu_forward_direct(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim,
+    const float *b_data, const u64 *b_shape, const u64 *b_strides, u64 b_ndim,
+    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim) {
+  Tensor a = {0};
+  a.data = (void*)a_data;
+  a.ndim = a_ndim;
+  a.dtype = FLOAT32;
+  memcpy(a.shape, a_shape, a_ndim * sizeof(u64));
+  memcpy(a.strides, a_strides, a_ndim * sizeof(u64));
+
+  Tensor b = {0};
+  b.data = (void*)b_data;
+  b.ndim = b_ndim;
+  b.dtype = FLOAT32;
+  memcpy(b.shape, b_shape, b_ndim * sizeof(u64));
+  memcpy(b.strides, b_strides, b_ndim * sizeof(u64));
+
+  u64 M = a.shape[a.ndim - 2];
+  u64 K = a.shape[a.ndim - 1];
+  u64 N = b.shape[b.ndim - 1];
+
+  u64 batches = 1;
+  for (u64 i = 0; i < a.ndim - 2; ++i)
+    batches *= a.shape[i];
+
+  TensorPack pa, pb;
+  tensor_pack_init(&pa, &a);
+  tensor_pack_init(&pb, &b);
+
+  matmul_cpu_forward_float_contig_kernel((const float *)pa.data, (const float *)pb.data, c_data, batches, M, K, N);
+
+  tensor_pack_release(&pa);
+  tensor_pack_release(&pb);
+}
+
+void matmul_cpu_backward_direct(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim,
+    float *da_data, const u64 *da_strides, bool a_requires_grad,
+    const float *b_data, const u64 *b_shape, const u64 *b_strides, u64 b_ndim,
+    float *db_data, const u64 *db_strides, bool b_requires_grad,
+    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides, u64 dc_ndim) {
+
+  Tensor a = {0};
+  a.data = (void*)a_data;
+  a.ndim = a_ndim;
+  a.dtype = FLOAT32;
+  a.requires_grad = a_requires_grad;
+  memcpy(a.shape, a_shape, a_ndim * sizeof(u64));
+  memcpy(a.strides, a_strides, a_ndim * sizeof(u64));
+
+  Tensor b = {0};
+  b.data = (void*)b_data;
+  b.ndim = b_ndim;
+  b.dtype = FLOAT32;
+  b.requires_grad = b_requires_grad;
+  memcpy(b.shape, b_shape, b_ndim * sizeof(u64));
+  memcpy(b.strides, b_strides, b_ndim * sizeof(u64));
+
+  Tensor output = {0};
+  output.ndim = dc_ndim;
+  output.dtype = FLOAT32;
+  memcpy(output.shape, dc_shape, dc_ndim * sizeof(u64));
+  memcpy(output.strides, dc_strides, dc_ndim * sizeof(u64));
+
+  Tensor dc_tensor = {0};
+  dc_tensor.data = (void*)dc_data;
+  dc_tensor.ndim = dc_ndim;
+  dc_tensor.dtype = FLOAT32;
+  memcpy(dc_tensor.shape, dc_shape, dc_ndim * sizeof(u64));
+  memcpy(dc_tensor.strides, dc_strides, dc_ndim * sizeof(u64));
+  output.grad = &dc_tensor;
+
+  Tensor da_tensor = {0};
+  da_tensor.data = (void*)da_data;
+  da_tensor.ndim = a_ndim;
+  da_tensor.dtype = FLOAT32;
+  memcpy(da_tensor.shape, a_shape, a_ndim * sizeof(u64));
+  memcpy(da_tensor.strides, da_strides, a_ndim * sizeof(u64));
+  a.grad = &da_tensor;
+
+  Tensor db_tensor = {0};
+  db_tensor.data = (void*)db_data;
+  db_tensor.ndim = b_ndim;
+  db_tensor.dtype = FLOAT32;
+  memcpy(db_tensor.shape, b_shape, b_ndim * sizeof(u64));
+  memcpy(db_tensor.strides, db_strides, b_ndim * sizeof(u64));
+  b.grad = &db_tensor;
+
+  u64 M = a.shape[a.ndim - 2];
+  u64 K = a.shape[a.ndim - 1];
+  u64 N = b.shape[b.ndim - 1];
+
+  u64 batches = 1;
+  for (u64 i = 0; i < a.ndim - 2; ++i)
+    batches *= a.shape[i];
+
+  TensorPack pdc;
+  tensor_pack_init(&pdc, &dc_tensor);
+
+  if (a.requires_grad) {
+    TensorPack pb;
+    tensor_pack_init(&pb, &b);
+    if (pb.data) {
+      matmul_cpu_forward_float_nt_kernel((const float *)pdc.data, (const float *)pb.data,
+                                         (float *)da_tensor.data, batches, M, N, K);
+    }
+    tensor_pack_release(&pb);
+  }
+
+  if (b.requires_grad) {
+    TensorPack pa;
+    tensor_pack_init(&pa, &a);
+    if (pa.data) {
+      matmul_cpu_forward_float_tn_kernel((const float *)pa.data, (const float *)pdc.data,
+                                         (float *)db_tensor.data, batches, K, M, N);
+    }
+    tensor_pack_release(&pa);
+  }
+
+  tensor_pack_release(&pdc);
+}

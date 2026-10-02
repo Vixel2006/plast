@@ -1,4 +1,4 @@
-import os, sys, subprocess, shutil
+import os, sys, sysconfig, subprocess, shutil
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import pybind11
@@ -47,7 +47,8 @@ class custom_build_ext(build_ext):
             subprocess.check_call(cmd + ["-c", src, "-o", obj])
             objs.append(obj)
 
-        py_includes = subprocess.check_output(["python3-config", "--includes"]).decode().split()
+        includepy = sysconfig.get_config_var("INCLUDEPY")
+        py_includes = [f"-I{includepy}"] if includepy else []
 
         base_cflags = ["-O3", "-fPIC", "-march=native", "-fopenmp"]
         if HAS_CUDA:
@@ -109,6 +110,8 @@ c_sources = [
     "src/scheduler/scheduler.c",
     "src/scheduler/jit.c",
     "src/scheduler/fusion.c",
+    "src/data/dataset.c",
+    "src/lr_scheduler/lr_scheduler.c",
 ]
 
 cu_sources = [

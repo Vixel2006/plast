@@ -1,4 +1,7 @@
 import numpy as np
+from ..tensor import Tensor
+from .._internal import tensor
+from ..plast_core import TensorDataset as _CTensorDataset
 
 
 class Dataset:
@@ -61,19 +64,27 @@ class TensorDataset(Dataset):
                 f"TensorDataset: all tensors must have the same first-dimension size, "
                 f"got sizes {sizes}."
             )
-        self.tensors = tensors
+
+        self.raw_tensors = tensors
+        self.tensors = []
+        for t in tensors:
+            if isinstance(t, Tensor):
+                self.tensors.append(t)
+            else:
+                # We convert numpy arrays to persistent CPU Tensors.
+                self.tensors.append(tensor(t, persistent=True))
+
+        c_tensors = [t._t for t in self.tensors]
+        self._c_dataset = _CTensorDataset(c_tensors)
 
     def __getitem__(self, index):
-        return tuple(t[index] for t in self.tensors)
+        return tuple(t[index] for t in self.raw_tensors)
 
     def __len__(self) -> int:
-        return len(self.tensors[0])
+        return len(self._c_dataset)
 
     def __repr__(self) -> str:
         shapes = []
         for t in self.tensors:
-            if hasattr(t, "shape"):
-                shapes.append(str(list(t.shape)) if hasattr(t.shape, "__iter__") else str(t.shape))
-            else:
-                shapes.append(f"[{len(t)}, ...]")
+            shapes.append(str(list(t.shape)))
         return f"TensorDataset(tensors=[{', '.join(shapes)}], size={len(self)})"

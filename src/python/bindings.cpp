@@ -16,6 +16,9 @@ extern "C" {
 #include "core/tensor.h"
 #include "scheduler/jit.h"
 #include "scheduler/scheduler.h"
+#include "data/dataset.h"
+#include "data/dataloader.h"
+#include "lr_scheduler/lr_scheduler.h"
 // CPU pack declarations
 typedef struct {
   void *data;
@@ -337,4 +340,90 @@ PYBIND11_MODULE(plast_core, m) {
            [](Scheduler &self) {
              jit_clear(self.jit);
            });
+
+  struct TensorDatasetDeleter {
+    void operator()(TensorDataset *d) const { free_tensor_dataset(d); }
+  };
+
+  py::class_<TensorDataset, std::unique_ptr<TensorDataset, TensorDatasetDeleter>>(m, "TensorDataset")
+      .def(py::init([](std::vector<Tensor *> tensors) {
+        return std::unique_ptr<TensorDataset, TensorDatasetDeleter>(
+            create_tensor_dataset(tensors.data(), tensors.size()));
+      }))
+      .def_readonly("size", &TensorDataset::size)
+      .def_readonly("num_tensors", &TensorDataset::num_tensors)
+      .def("__len__", [](const TensorDataset &self) { return self.size; });
+
+  struct DataLoaderDeleter {
+    void operator()(DataLoader *l) const { free_dataloader(l); }
+  };
+
+  py::class_<DataLoader, std::unique_ptr<DataLoader, DataLoaderDeleter>>(m, "DataLoader")
+      .def(py::init([](TensorDataset &dataset, u64 batch_size, bool shuffle, bool drop_last, DEVICE device) {
+        return std::unique_ptr<DataLoader, DataLoaderDeleter>(
+            create_dataloader(&dataset, batch_size, shuffle, drop_last, device));
+      }))
+      .def("reset", &reset_dataloader_iterator)
+      .def("next_batch", [](DataLoader &self, Arena &meta_arena, Arena &data_arena) -> py::object {
+        std::vector<Tensor *> out_batches(self.dataset->num_tensors);
+        bool has_next = dataloader_next_batch(&self, &meta_arena, &data_arena, out_batches.data());
+        if (!has_next) {
+          return py::none();
+        }
+        return py::cast(out_batches);
+      });
+
+  struct LRSchedulerDeleter {
+    void operator()(LRScheduler *s) const { free_lr_scheduler(s); }
+  };
+  
+  py::enum_<LRSchedulerType>(m, "LRSchedulerType")
+      .value("STEP_LR", STEP_LR)
+      .value("MULTI_STEP_LR", MULTI_STEP_LR)
+      .value("EXPONENTIAL_LR", EXPONENTIAL_LR)
+      .value("COSINE_ANNEALING_LR", COSINE_ANNEALING_LR)
+      .export_values();
+
+  py::class_<LRScheduler, std::unique_ptr<LRScheduler, LRSchedulerDeleter>>(m, "LRScheduler")
+      .def(py::init([](LRSchedulerType type, std::vector<double> base_lrs, u64 arg1, double arg2, i64 last_epoch) {
+        if (type == STEP_LR) {
+          return std::unique_ptr<LRScheduler, LRSchedulerDeleter>(
+              create_step_lr(base_lrs.data(), base_lrs.size(), arg1, arg2, last_epoch));
+        } else if (type == EXPONENTIAL_LR) {
+          return std::unique_ptr<LRScheduler, LRSchedulerDeleter>(
+              create_exponential_lr(base_lrs.data(), base_lrs.size(), arg2, last_epoch));
+        } else if (type == COSINE_ANNEALING_LR) {
+          return std::unique_ptr<LRScheduler, LRSchedulerDeleter>(
+              create_cosine_annealing_lr(base_lrs.data(), base_lrs.size(), arg1, arg2, last_epoch));
+        }
+        throw std::runtime_error("Unsupported scheduler type for this initializer");
+      }), py::arg("type"), py::arg("base_lrs"), py::arg("arg1"), py::arg("arg2"), py::arg("last_epoch") = -1)
+      .def(py::init([](std::vector<double> base_lrs, std::vector<u64> milestones, double gamma, i64 last_epoch) {
+        return std::unique_ptr<LRScheduler, LRSchedulerDeleter>(
+            create_multi_step_lr(base_lrs.data(), base_lrs.size(), milestones.data(), milestones.size(), gamma, last_epoch));
+      }), py::arg("base_lrs"), py::arg("milestones"), py::arg("gamma"), py::arg("last_epoch") = -1)
+      .def_property("last_epoch", [](const LRScheduler &self) { return self.last_epoch; }, [](LRScheduler &self, i64 epoch) { self.last_epoch = epoch; })
+      .def("step", [](LRScheduler &self, std::vector<double> current_lrs, i64 epoch) {
+        lr_scheduler_step(&self, current_lrs.data(), epoch);
+        return current_lrs;
+      }, py::arg("current_lrs"), py::arg("epoch") = -1);
+
+  struct ReduceLROnPlateauDeleter {
+    void operator()(ReduceLROnPlateau *r) const { free_reduce_lr_on_plateau(r); }
+  };
+
+  py::enum_<ReduceLROnPlateauMode>(m, "ReduceLROnPlateauMode")
+      .value("MIN_MODE", MIN_MODE)
+      .value("MAX_MODE", MAX_MODE)
+      .export_values();
+
+  py::class_<ReduceLROnPlateau, std::unique_ptr<ReduceLROnPlateau, ReduceLROnPlateauDeleter>>(m, "ReduceLROnPlateau")
+      .def(py::init([](u64 num_groups, double factor, u64 patience, double threshold, u64 cooldown, std::vector<double> min_lrs, double eps, ReduceLROnPlateauMode mode) {
+        return std::unique_ptr<ReduceLROnPlateau, ReduceLROnPlateauDeleter>(
+            create_reduce_lr_on_plateau(num_groups, factor, patience, threshold, cooldown, min_lrs.data(), eps, mode));
+      }), py::arg("num_groups"), py::arg("factor"), py::arg("patience"), py::arg("threshold"), py::arg("cooldown"), py::arg("min_lrs"), py::arg("eps"), py::arg("mode"))
+      .def("step", [](ReduceLROnPlateau &self, double metrics, std::vector<double> current_lrs, i64 epoch) {
+        bool reduced = reduce_lr_on_plateau_step(&self, metrics, current_lrs.data(), epoch);
+        return std::make_pair(reduced, current_lrs);
+      }, py::arg("metrics"), py::arg("current_lrs"), py::arg("epoch") = -1);
 }

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyplast"
-version = "0.1.1"
+version = "0.1.4"
 requires-python = ">=3.12"
 description = "A lightweight C/CUDA tensor library with Python bindings"
 readme = "README.md"
@@ -27,7 +27,7 @@ Homepage = "https://github.com/Vixel2006/plast"
 Repository = "https://github.com/Vixel2006/plast"
 
 [tool.setuptools]
-packages = ["plast"]
+packages = ["plast", "plast.nn", "plast.optim", "plast.data", "plast.experiment"]
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-timeout", "numpy"]

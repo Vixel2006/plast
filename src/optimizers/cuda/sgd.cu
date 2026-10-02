@@ -30,3 +30,9 @@ void sgd_step_cuda(SGD *optimizer, Tensor **parameters, int num_parameters) {
     sgd_kernel<<<numBlocks, blockSize>>>(data_d, grad_d, optimizer->lr, num_elements);
   }
 }
+
+extern "C" void sgd_step_cuda_raw(float *data, const float *grad, float lr, size_t num_elements) {
+  int blockSize = 256;
+  int numBlocks = (num_elements + blockSize - 1) / blockSize;
+  sgd_kernel<<<numBlocks, blockSize>>>(data, grad, lr, num_elements);
+}

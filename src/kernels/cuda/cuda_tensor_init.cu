@@ -2,14 +2,14 @@
 #include "core/definitions.h"
 #include <cuda_runtime.h>
 
-__global__ void zeros_kernel_int32(i32 *data, u64 num_elements) {
+extern "C" __global__ void zeros_kernel_int32(i32 *data, u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     data[idx] = 0;
   }
 }
 
-__global__ void zeros_kernel_float32(float *data, u64 num_elements) {
+extern "C" __global__ void zeros_kernel_float32(float *data, u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     data[idx] = 0.0f;
@@ -37,14 +37,14 @@ void zeros_cuda(Tensor *t, u64 num_elements) {
   cudaDeviceSynchronize(); // Ensure kernel completes
 }
 
-__global__ void ones_kernel_int32(i32 *data, u64 num_elements) {
+extern "C" __global__ void ones_kernel_int32(i32 *data, u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     data[idx] = 1;
   }
 }
 
-__global__ void ones_kernel_float32(float *data, u64 num_elements) {
+extern "C" __global__ void ones_kernel_float32(float *data, u64 num_elements) {
   u64 idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_elements) {
     data[idx] = 1.0f;

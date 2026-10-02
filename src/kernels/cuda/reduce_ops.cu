@@ -512,6 +512,137 @@ extern "C" void min_cuda_backward(Tensor **inputs, const Tensor *output, KernelP
   max_min_cuda_backward_impl(inputs, output, params);
 }
 
+template <typename Op>
+void reduce_cuda_forward_direct_impl(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim, bool a_is_contig,
+    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim,
+    u64 dim, bool keepdim, Op op) {
+  if (dim == MAX_NDIM + 1) {
+    u64 num_elements = 1;
+    for (u64 i = 0; i < a_ndim; ++i)
+      num_elements *= a_shape[i];
+
+    const u64 block_size = 256;
+    const u64 grid_size = (num_elements + (block_size * 2) - 1) / (block_size * 2);
+    const u64 shared_mem_size = block_size * sizeof(float);
+
+    if (a_is_contig) {
+      reduce_cuda_forward_float_contig_kernel<Op, block_size>
+          <<<grid_size, block_size, shared_mem_size>>>(a_data, c_data, num_elements, op);
+    } else {
+      reduce_cuda_forward_float_noncontig_kernel<Op, block_size>
+          <<<grid_size, block_size, shared_mem_size>>>(
+              a_data, a_shape, a_strides, a_ndim, c_data, num_elements, op);
+    }
+  } else {
+    u64 reduce_size = a_shape[dim];
+    u64 output_num_elements = 1;
+    for (u64 i = 0; i < c_ndim; ++i)
+      output_num_elements *= c_shape[i];
+
+    const u64 block_size = 256;
+    const u64 shared_mem_size = block_size * sizeof(float);
+
+    reduce_cuda_forward_float_dim_kernel<Op>
+        <<<output_num_elements, block_size, shared_mem_size>>>(
+            a_data, a_shape, a_strides, a_ndim, c_data, c_shape,
+            c_strides, c_ndim, dim, reduce_size, keepdim, op);
+  }
+  CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+extern "C" void sum_cuda_forward_direct(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim, bool a_is_contig,
+    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim, u64 dim, bool keepdim) {
+  reduce_cuda_forward_direct_impl(a_data, a_shape, a_strides, a_ndim, a_is_contig, c_data, c_shape, c_strides, c_ndim, dim, keepdim, SumOp());
+}
+
+extern "C" void mean_cuda_forward_direct(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim, bool a_is_contig,
+    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim, u64 dim, bool keepdim) {
+  reduce_cuda_forward_direct_impl(a_data, a_shape, a_strides, a_ndim, a_is_contig, c_data, c_shape, c_strides, c_ndim, dim, keepdim, MeanOp());
+}
+
+extern "C" void max_cuda_forward_direct(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim, bool a_is_contig,
+    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim, u64 dim, bool keepdim) {
+  reduce_cuda_forward_direct_impl(a_data, a_shape, a_strides, a_ndim, a_is_contig, c_data, c_shape, c_strides, c_ndim, dim, keepdim, MaxOp());
+}
+
+extern "C" void min_cuda_forward_direct(
+    const float *a_data, const u64 *a_shape, const u64 *a_strides, u64 a_ndim, bool a_is_contig,
+    float *c_data, const u64 *c_shape, const u64 *c_strides, u64 c_ndim, u64 dim, bool keepdim) {
+  reduce_cuda_forward_direct_impl(a_data, a_shape, a_strides, a_ndim, a_is_contig, c_data, c_shape, c_strides, c_ndim, dim, keepdim, MinOp());
+}
+
+extern "C" void sum_mean_cuda_backward_direct(
+    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides, u64 dc_ndim,
+    float *da_data, const u64 *da_shape, const u64 *da_strides, u64 da_ndim, bool da_is_contig,
+    u64 dim, bool keepdim, bool is_mean) {
+  if (dim == MAX_NDIM + 1) {
+    u64 num_elements = 1;
+    for (u64 i = 0; i < da_ndim; ++i)
+      num_elements *= da_shape[i];
+
+    const u64 block_size = 256;
+    const u64 grid_size = (num_elements + block_size - 1) / block_size;
+
+    if (da_is_contig) {
+      sum_mean_cuda_backward_float_kernel<true><<<grid_size, block_size>>>(
+          dc_data, da_data, da_shape, da_strides, da_ndim, num_elements, is_mean);
+    } else {
+      sum_mean_cuda_backward_float_kernel<false><<<grid_size, block_size>>>(
+          dc_data, da_data, da_shape, da_strides, da_ndim, num_elements, is_mean);
+    }
+  } else {
+    u64 reduce_size = da_shape[dim];
+    u64 output_num_elements = 1;
+    for (u64 i = 0; i < dc_ndim; ++i)
+      output_num_elements *= dc_shape[i];
+
+    const u64 block_size = 256;
+
+    sum_mean_cuda_backward_float_dim_kernel<true><<<output_num_elements, block_size>>>(
+        dc_data, dc_shape, dc_strides, dc_ndim, da_data, da_shape, da_strides,
+        da_ndim, dim, reduce_size, keepdim, is_mean);
+  }
+  CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+extern "C" void max_min_cuda_backward_direct(
+    const float *dc_data, const u64 *dc_shape, const u64 *dc_strides, u64 dc_ndim,
+    float *da_data, const u64 *da_shape, const u64 *da_strides, u64 da_ndim, bool da_is_contig,
+    const float *a_data_fwd, const float *c_data_fwd,
+    u64 dim, bool keepdim) {
+  if (dim == MAX_NDIM + 1) {
+    u64 num_elements = 1;
+    for (u64 i = 0; i < da_ndim; ++i)
+      num_elements *= da_shape[i];
+
+    const u64 block_size = 256;
+    const u64 grid_size = (num_elements + block_size - 1) / block_size;
+
+    if (da_is_contig) {
+      max_min_cuda_backward_float_kernel<true><<<grid_size, block_size>>>(
+          dc_data, da_data, a_data_fwd, c_data_fwd, da_shape, da_strides, da_ndim, num_elements);
+    } else {
+      max_min_cuda_backward_float_kernel<false><<<grid_size, block_size>>>(
+          dc_data, da_data, a_data_fwd, c_data_fwd, da_shape, da_strides, da_ndim, num_elements);
+    }
+  } else {
+    u64 output_num_elements = 1;
+    for (u64 i = 0; i < dc_ndim; ++i)
+      output_num_elements *= dc_shape[i];
+
+    const u64 block_size = 256;
+
+    max_min_cuda_backward_float_dim_kernel<true><<<output_num_elements, block_size>>>(
+        dc_data, dc_shape, dc_strides, dc_ndim, da_data, a_data_fwd, c_data_fwd,
+        da_shape, da_strides, da_ndim, dim, keepdim);
+  }
+  CUDA_CHECK(cudaDeviceSynchronize());
+}
+
 // =====================================================================
 // Standalone benchmark (build with: make reduce_bench)
 // =====================================================================

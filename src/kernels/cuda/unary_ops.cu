@@ -103,14 +103,14 @@
 
 // ── kernel generation macro ──
 #define DEFINE_CUDA_UNARY_KERNELS(op_name, OP_EXPR, GRAD_EXPR)                                     \
-  __global__ void op_name##_cuda_forward_float_contig_kernel(const float *a, float *c,             \
+  extern "C" __global__ void op_name##_cuda_forward_float_contig_kernel(const float *a, float *c,             \
                                                              u64 num_elements) {                   \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
     if (idx < num_elements) {                                                                      \
       c[idx] = OP_EXPR(a[idx]);                                                                    \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_forward_float_non_contig_kernel(                                  \
+  extern "C" __global__ void op_name##_cuda_forward_float_non_contig_kernel(                                  \
       const float *a_data, const u64 *a_strides, float *c_data, const u64 *c_strides,              \
       const u64 *shape, u64 ndim, u64 num_elements) {                                              \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
@@ -122,8 +122,8 @@
       c_data[c_offset] = OP_EXPR(a_data[a_offset]);                                                \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_backward_float_contig_kernel(const float *dout, const float *a,   \
-                                                              float *da, u64 num_elements) {       \
+  extern "C" __global__ void op_name##_cuda_backward_float_contig_kernel(const float *dout, const float *a,   \
+                                                               float *da, u64 num_elements) {       \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
     if (idx < num_elements) {                                                                      \
       if (da) {                                                                                    \
@@ -131,7 +131,7 @@
       }                                                                                            \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_backward_float_non_contig_kernel(                                 \
+  extern "C" __global__ void op_name##_cuda_backward_float_non_contig_kernel(                                 \
       const float *dout_data, const u64 *dout_strides, const float *a_data, const u64 *a_strides,  \
       float *da_data, const u64 *da_strides, const u64 *shape, u64 ndim, u64 num_elements) {       \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
@@ -148,14 +148,14 @@
   }
 
 #define DEFINE_CUDA_UNARY_KERNELS_PARAM(op_name, OP_EXPR, GRAD_EXPR, param_type, param_name)       \
-  __global__ void op_name##_cuda_forward_float_contig_kernel(                                      \
+  extern "C" __global__ void op_name##_cuda_forward_float_contig_kernel(                                      \
       const float *a, float *c, u64 num_elements, param_type param_name) {                         \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
     if (idx < num_elements) {                                                                      \
       c[idx] = OP_EXPR(a[idx], param_name);                                                        \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_forward_float_non_contig_kernel(                                  \
+  extern "C" __global__ void op_name##_cuda_forward_float_non_contig_kernel(                                  \
       const float *a_data, const u64 *a_strides, float *c_data, const u64 *c_strides,              \
       const u64 *shape, u64 ndim, u64 num_elements, param_type param_name) {                       \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
@@ -167,7 +167,7 @@
       c_data[c_offset] = OP_EXPR(a_data[a_offset], param_name);                                    \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_backward_float_contig_kernel(                                     \
+  extern "C" __global__ void op_name##_cuda_backward_float_contig_kernel(                                     \
       const float *dout, const float *a, float *da, u64 num_elements, param_type param_name) {     \
     u64 idx = blockIdx.x * blockDim.x + threadIdx.x;                                               \
     if (idx < num_elements) {                                                                      \
@@ -176,7 +176,7 @@
       }                                                                                            \
     }                                                                                              \
   }                                                                                                \
-  __global__ void op_name##_cuda_backward_float_non_contig_kernel(                                 \
+  extern "C" __global__ void op_name##_cuda_backward_float_non_contig_kernel(                                 \
       const float *dout_data, const u64 *dout_strides, const float *a_data, const u64 *a_strides,  \
       float *da_data, const u64 *da_strides, const u64 *shape, u64 ndim, u64 num_elements,         \
       param_type param_name) {                                                                     \

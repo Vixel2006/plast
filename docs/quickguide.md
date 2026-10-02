@@ -1,180 +1,46 @@
-# quick guide
+# Plast Technical Documentation
 
-plast has two APIs. choose your fighter.
+Welcome to the Plast technical documentation. This sitemap indexes the architecture, design patterns, and programming interfaces of the Plast deep learning engine.
 
-## the classic api (for noobs)
+---
 
-pytorch-compatible. `nn.Module`, `nn.Sequential`, optimizers, dataloaders. if you know torch, you know this.
+## 1. Documentation Index
 
-```python
-import plast
-from plast.nn import Linear, ReLU, Sequential, MSELoss
-from plast.optim import SGD
+* 🚀 **[Getting Started](./getting_started.md)**: Environment setup, compiling Python bindings, and training a simple XOR MLP model.
+* 🏗️ **[Engine Architecture](./architecture.md)**: Deep dive into the custom memory Arenas (persistent vs. transient), strided tensor layouts, DAG autograd traversal, and the graph scheduler.
+* 🐍 **[Python API Reference](./python_api.md)**: Detailed classes, factory functions, mathematical operators, modules, optimizers, and schedulers in the python frontend.
+* 🔌 **[C API Guide](./c_api.md)**: Working with memory pools, creating tensors, creating nodes, running schedule passes, and compiling/linking standalone binaries in C.
+* ⚡ **[Adding Custom Kernels & Fusions](./custom_kernels.md)**: Developer guide for registering custom CPU (AVX) and CUDA (sm_80+) kernels, and writing manual operator fusions in the scheduler.
 
-plast.init_arenas(device=plast.Device.CPU)
+---
 
-model = Sequential(
-    Linear(2, 8),
-    ReLU(),
-    Linear(8, 1),
-)
-optimizer = SGD(model.parameters(), lr=0.01)
-loss_fn = MSELoss()
+## 2. Core Concepts Reference
 
-x = plast.tensor([[0, 0], [0, 1], [1, 0], [1, 1]])
-y = plast.tensor([[0], [1], [1], [0]])
+If you are new to Plast, these are the key architectural decisions that distinguish Plast from standard frameworks like PyTorch or JAX:
 
-for epoch in range(1000):
-    pred = model(x)
-    loss = loss_fn(pred, y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-```
-
-## the pipeline api (for pros)
-
-neural networks are data transformation pipelines. compose pure functions, let the scheduler and JIT handle the rest.
-
+### The Arena Allocation Pattern
+To avoid system allocation (`malloc`/`free`) overhead during training loops, Plast pre-allocates contiguous memory pools.
 ```python
 import plast as p
-from plast.experiment import ExperimentConfig, ExperimentTracker
 
+# 1. Initialize persistent and transient pools
 p.init_arenas(device=p.Device.CUDA)
 
-# define your pipeline as function composition
-# (pipe() api coming soon — for now, chain manually)
-def forward(x, W1, b1, W2, b2):
-    h = p.nn.functional.relu(p.nn.functional.linear(x, W1, b1))
-    return p.nn.functional.linear(h, W2, b2)
+# ... training step ...
 
-# tensors
-x = p.tensor([[0, 0], [0, 1], [1, 0], [1, 1]])
-W1, b1, W2, b2 = [p.tensor(...) for _ in range(4)]
-
-loss = forward(x, W1, b1, W2, b2)
-loss.backward()
+# 2. Reset intermediate activations & gradients
+p.reset_transient_arenas()
 ```
+* **Persistent Arena**: Retains model weights, biases, and running parameters.
+* **Transient Arena**: Retains intermediate outputs and backward gradients. This arena is cleared at the end of each training loop iteration using `reset_transient_arenas()`.
 
-## tensors
-
+### Caching JIT Graph Scheduler
+The execution paths are compiled and cached on their first sweep. Tensors are realized dynamically via:
 ```python
-import plast
-plast.init_arenas(meta_size_mb=10, data_size_mb=100, device=plast.Device.CPU)
+# Explicit execution
+p.forward(tensor)
 
-# from data
-x = plast.tensor([[1, 2], [3, 4]], device=plast.Device.CPU)
-
-# arithmetic — these all build graph nodes
-z = x + y          # add
-z = x * y          # mul
-z = x @ y          # matmul
-
-# move devices
-z = z.to(plast.Device.CUDA)
-
-# back to numpy
-z_np = z.numpy()
+# Implicit execution (triggered automatically)
+values = tensor.numpy()
 ```
-
-## autograd
-
-```python
-import plast
-plast.init_arenas(device=plast.Device.CPU)
-
-x = plast.tensor([1.0, 2.0, 3.0], requires_grad=True)
-y = plast.tensor([4.0, 5.0, 6.0], requires_grad=True)
-loss = ((x * y) ** 2).mean()
-
-loss.backward()  # populates x.grad and y.grad
-print(x.grad.numpy())
-```
-
-## gpu training
-
-change `device=plast.Device.CUDA` in `init_arenas()` and when creating tensors. everything else stays the same — arena dispatch handles the rest.
-
-## experiment tracking
-
-```python
-from plast.experiment import ExperimentConfig, ExperimentTracker
-
-config = ExperimentConfig(
-    name="mlp_mnist",
-    model={"hidden": 256},
-    training={"lr": 1e-3, "epochs": 50},
-    device="cuda",
-)
-tracker = ExperimentTracker(config)
-
-for epoch in range(50):
-    loss = train_one_epoch(...)
-    tracker.log_epoch(epoch, {"train_loss": loss})
-
-tracker.finish()
-# produces experiments/mlp_mnist/run_001/ with config, metrics, checkpoints
-```
-
-## c api
-
-plast is a C library with python bindings. if you want to go bare metal:
-
-```c
-#include "arena.h"
-#include "tensor.h"
-#include "graph.h"
-#include "op.h"
-
-Arena meta = arena_create(Mib(10), DEVICE_CPU);
-Arena data = arena_create(Mib(100), DEVICE_CUDA);
-
-// 2D parameter tensor
-Tensor *w = init(&meta, &data, DEVICE_CUDA, FLOAT32,
-                 (u64[]){2, 8}, 2, true, rand_init);
-
-// graph node
-Tensor *out = init(&meta, &data, DEVICE_CUDA, FLOAT32,
-                   (u64[]){4, 8}, 2, true, NULL);
-Node *n = arena_node_alloc(&meta, (Tensor *[]){x, w}, 2,
-                           out, get_op_impl(MATMUL), 0, false);
-
-// forward/backward
-forward(n);
-set_ones_grad(out);
-backward(n);
-```
-
-see `main.c` for a complete XOR training example.
-
-## project structure
-
-```
-include/            — C headers
-  kernels/             — kernel declarations
-  optimizers/          — optimizer structs
-src/                — C/CUDA implementation
-  kernels/cpu/         — cpu kernels (avx, omp)
-  kernels/cuda/        — cuda kernels (sm_80+)
-  optimizers/          — sgd, adam, adamw
-  python/              — pybind11 bindings
-plast/              — python package
-  nn/                  — classic api (module, layers, losses)
-  optim/               — optimizers + lr schedulers
-  data/                — dataset, dataloader
-  experiment/          — tracking, config, yaml
-tests/              — pytest suite
-```
-
-## key concepts
-
-- **arena allocation** — pre-allocated pools. zero malloc/free during training.
-- **dynamic computation graph** — built per forward/backward, topological sort.
-- **dual backend** — cpu (avx/simd + omp) and cuda (sm_80+) share the same graph interface.
-- **pipeline philosophy** — layer ops are pure functions. compose them. the JIT fuses them.
-
-## see also
-
-- `main.c` — native C XOR example
-- `test_modular_xor.py` — full python example with experiment tracking
-- `tests/` — the test suite documents expected behavior better than any readme
+Decorating step functions with `@p.jit` enables structural hashing, caching the topological ordering and scheduling fusions for subsequent passes.

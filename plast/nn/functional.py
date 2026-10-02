@@ -111,7 +111,7 @@ def dropout(x: Tensor, p: float = 0.5, training: bool = True) -> Tensor:
             f"dropout probability must be in [0, 1), got {p}."
         )
     mask_np = (np.random.rand(*x.shape) >= p).astype(np.float32) / (1.0 - p)
-    mask = tensor(mask_np, device=x.device)
+    mask = tensor(mask_np, device=x.device, persistent=False)
     return x * mask
 
 
@@ -191,8 +191,8 @@ def batch_norm(
                 (1.0 - momentum) * running_var.numpy() + momentum * var_np
             )
         else:
-            mean = tensor(running_mean.numpy().reshape(1, input.shape[1]), device=input.device)
-            var = tensor(running_var.numpy().reshape(1, input.shape[1]), device=input.device)
+            mean = tensor(running_mean.numpy().reshape(1, input.shape[1]), device=input.device, persistent=False)
+            var = tensor(running_var.numpy().reshape(1, input.shape[1]), device=input.device, persistent=False)
 
         std = ((var + eps).log() * 0.5).exp()
         norm_input = (input - mean) / std
@@ -223,8 +223,8 @@ def batch_norm(
                 (1.0 - momentum) * running_var.numpy() + momentum * var_np
             )
         else:
-            mean = tensor(running_mean.numpy().reshape(C, 1), device=input.device)
-            var = tensor(running_var.numpy().reshape(C, 1), device=input.device)
+            mean = tensor(running_mean.numpy().reshape(C, 1), device=input.device, persistent=False)
+            var = tensor(running_var.numpy().reshape(C, 1), device=input.device, persistent=False)
 
         std = ((var + eps).log() * 0.5).exp()
         norm_flat = (flat - mean) / std
@@ -305,7 +305,7 @@ def smooth_l1_loss(input: Tensor, target: Tensor, beta: float = 1.0, reduction: 
         0.5 * diff_np ** 2 / beta,
         abs_diff - 0.5 * beta,
     ).astype(np.float32)
-    loss = tensor(loss_np, device=input.device)
+    loss = tensor(loss_np, device=input.device, persistent=False)
     return _reduce(loss, reduction)
 
 
@@ -327,7 +327,7 @@ def cross_entropy(input: Tensor, target: Tensor, reduction: str = "mean") -> Ten
         t_np = target.numpy().astype(np.int32)
         one_hot_np = np.zeros((t_np.shape[0], num_classes), dtype=np.float32)
         one_hot_np[np.arange(t_np.shape[0]), t_np] = 1.0
-        target = tensor(one_hot_np, device=input.device)
+        target = tensor(one_hot_np, device=input.device, persistent=False)
 
     loss = -(target * log_soft).sum(dim=1)
     return _reduce(loss, reduction)
@@ -350,7 +350,7 @@ def nll_loss(input: Tensor, target: Tensor, reduction: str = "mean") -> Tensor:
     # Gather the log-prob for the correct class
     lp_np = input.numpy()
     selected = lp_np[np.arange(N), t_np].astype(np.float32)
-    loss = tensor(-selected, device=input.device)
+    loss = tensor(-selected, device=input.device, persistent=False)
     return _reduce(loss, reduction)
 
 
